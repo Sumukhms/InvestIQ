@@ -33,13 +33,6 @@ const TeamMemberCard = ({ name, role, avatar, social }) => (
 const AboutPage = () => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
 
-    const navLinks = [
-        { to: "/", text: "HOME" },
-        { to: "/about", text: "ABOUT" },
-        { to: "/#features", text: "FEATURES" },
-        { to: "/dashboard", text: "DASHBOARD" },
-    ];
-
     return (
         <div className="font-sans bg-gray-50 text-gray-800">
             {/* Header */}
@@ -47,9 +40,6 @@ const AboutPage = () => {
                 <div className="container mx-auto px-6 py-4">
                     <div className="flex justify-between items-center">
                         <Logo />
-                        <nav className="hidden md:flex items-center space-x-8 text-sm font-medium">
-                            {navLinks.map(link => <Link key={link.text} to={link.to} className="hover:text-red-500 transition-colors">{link.text}</Link>)}
-                        </nav>
                         <div className="flex items-center">
                             <Link to="/login" className="hidden sm:inline-block text-sm font-medium mr-4 hover:text-red-500">LOGIN</Link>
                             <Link to="/promo-signup" className="hidden sm:inline-block bg-red-500 text-white text-sm font-bold py-2 px-5 rounded-full hover:bg-red-600 transition-colors">
@@ -63,7 +53,6 @@ const AboutPage = () => {
                     {isMenuOpen && (
                         <div className="md:hidden mt-4">
                             <nav className="flex flex-col space-y-3 text-center">
-                                {navLinks.map(link => <Link key={link.text} to={link.to} className="hover:text-red-500 py-1">{link.text}</Link>)}
                                 <Link to="/login" className="hover:text-red-500 py-1">LOGIN</Link>
                                 <Link to="/promo-signup" className="bg-red-500 text-white font-bold py-2 px-5 rounded-full mt-2">SIGN UP</Link>
                             </nav>
