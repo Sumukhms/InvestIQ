@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext'; // <-- IMPORT THE useAuth HOOK
+import { useAuth } from '../context/AuthContext'; // <-- IMPORT THE useAuth HOOK
 import AuthLayout from './AuthLayout';
 
 const LoginPage = () => {

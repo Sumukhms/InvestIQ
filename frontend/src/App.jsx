@@ -10,8 +10,8 @@ import LandingSignUpPage from './pages/LandingSignUpPage';
 
 // Note: These auth pages are likely in a subfolder.
 // Ensure this path matches your file structure.
-import LoginPage from './components/auth/LoginPage';
-import SignUpPage from './components/auth/SignUpPage';
+import LoginPage from './auth/LoginPage';
+import SignUpPage from './auth/SignUpPage';
 
 
 export default function App() {
