@@ -24,15 +24,6 @@ const LandingSignUpPage = () => {
 
     const backgroundImageUrl = 'https://images.unsplash.com/photo-1521737604893-d14cc237f11d?q=80&w=1920&auto=format&fit=crop';
 
-    // Updated navLinks with correct paths. Use 'to' instead of 'href'.
-    const navLinks = [
-        { to: "/", text: "HOME" },
-        { to: "/about", text: "ABOUT" },
-        { to: "/#features", text: "FEATURES" },
-        { to: "/new-analysis", text: "ANALYSIS" },
-        { to: "/dashboard", text: "DASHBOARD" },
-    ];
-
     return (
         <div 
             className="min-h-screen font-sans bg-gray-100 text-gray-800"
@@ -51,10 +42,6 @@ const LandingSignUpPage = () => {
                 <header className="container mx-auto px-6 py-4">
                     <div className="flex justify-between items-center">
                         <Logo />
-                        {/* Desktop Navigation using <Link> */}
-                        <nav className="hidden md:flex items-center space-x-6 text-sm font-medium">
-                            {navLinks.map(link => <Link key={link.text} to={link.to} className="hover:text-red-500 transition-colors">{link.text}</Link>)}
-                        </nav>
                         <div className="flex items-center">
                             {/* Login button now uses <Link> */}
                             <Link to="/login" className="hidden sm:inline-block border border-gray-400 hover:bg-gray-800 hover:text-white transition-colors text-sm font-bold py-2 px-5 rounded-full">
@@ -69,7 +56,6 @@ const LandingSignUpPage = () => {
                     {isMenuOpen && (
                         <div className="md:hidden mt-4 bg-white rounded-lg shadow-lg p-4 animate-fade-in">
                             <nav className="flex flex-col space-y-3 text-center">
-                                {navLinks.map(link => <Link key={link.text} to={link.to} className="hover:text-red-500 transition-colors py-1">{link.text}</Link>)}
                                 <Link to="/login" className="border border-gray-400 hover:bg-gray-800 hover:text-white transition-colors text-sm font-bold py-2 px-5 rounded-full mt-2">
                                     LOGIN
                                 </Link>

@@ -173,7 +173,7 @@ const fetchUserData = () => {
   return new Promise(resolve => {
     setTimeout(() => {
       resolve({
-        name: 'Spoorthi',
+        name: 'Sumukh',
         stats: { totalAnalyses: 14, averageScore: 78, highestScore: 92 },
         recentAnalyses: [
           { id: 1, name: 'Innovatech AI', date: '2025-08-14', score: 92, risk: 'Market Competition' },
