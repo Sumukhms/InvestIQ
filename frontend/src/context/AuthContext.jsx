@@ -1,45 +1,62 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
-import { fetchUserData } from '../api/mockApi'; // Your function to get user data
+import api from '../api/api';
 
-// Create the context
 const AuthContext = createContext(null);
 
-// Create the provider component
 export const AuthProvider = ({ children }) => {
-    const [isLoggedIn, setIsLoggedIn] = useState(() => localStorage.getItem('isLoggedIn') === 'true');
+    const [token, setToken] = useState(localStorage.getItem('token'));
     const [user, setUser] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
 
-    useEffect(() => {
-        // This effect syncs the login state to localStorage
-        localStorage.setItem('isLoggedIn', isLoggedIn);
-
-        // When the user logs in, fetch their data
-        if (isLoggedIn && !user) {
-            setIsLoading(true);
-            fetchUserData()
-                .then(data => {
-                    setUser(data);
-                })
-                .catch(error => {
-                    console.error("Failed to fetch user data", error);
-                    // If fetching fails, log the user out
-                    setIsLoggedIn(false); 
-                })
-                .finally(() => {
-                    setIsLoading(false);
-                });
-        } else if (!isLoggedIn) {
-            setUser(null);
-            setIsLoading(false);
+    const loadUser = async () => {
+        const currentToken = localStorage.getItem('token');
+        if (currentToken) {
+            try {
+                const res = await api.get('/auth/user');
+                setUser(res.data);
+            } catch (err) {
+                // If token is invalid, remove it
+                localStorage.removeItem('token');
+                setToken(null);
+                setUser(null);
+            }
         }
-    }, [isLoggedIn, user]);
+        setIsLoading(false);
+    };
 
-    const login = () => setIsLoggedIn(true);
-    const logout = () => setIsLoggedIn(false);
+    useEffect(() => {
+        loadUser();
+    }, []);
 
-    // The value provided to all consuming components
-    const value = { isLoggedIn, user, isLoading, login, logout };
+    const register = async (formData) => {
+        const res = await api.post('/auth/register', formData);
+        localStorage.setItem('token', res.data.token);
+        setToken(res.data.token);
+        await loadUser(); // Load user data after registration
+    };
+
+    const login = async (formData) => {
+        const res = await api.post('/auth/login', formData);
+        localStorage.setItem('token', res.data.token);
+        setToken(res.data.token);
+        await loadUser(); // Load user data after login
+    };
+
+    const logout = () => {
+        localStorage.removeItem('token');
+        setToken(null);
+        setUser(null);
+    };
+
+    const value = {
+        token,
+        user,
+        isLoading,
+        isLoggedIn: !!user, // isLoggedIn is true if user object exists
+        register,
+        login,
+        logout,
+    };
 
     return (
         <AuthContext.Provider value={value}>
@@ -48,7 +65,6 @@ export const AuthProvider = ({ children }) => {
     );
 };
 
-// Create a custom hook to easily use the context in other components
 export const useAuth = () => {
     return useContext(AuthContext);
 };

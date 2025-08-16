@@ -48,10 +48,10 @@ const Header = () => {
                         </button>
                         {isProfileOpen && (
                             <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl py-2 border border-gray-200">
-                                <a href="#" className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"><IconUser /> Profile</a>
-                                <a href="#" className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"><IconSettings /> Settings</a>
+                                <a href="#" className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"><IconUser className="w-4 h-4 mr-2" /> Profile</a>
+                                <a href="#" className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"><IconSettings className="w-4 h-4 mr-2" /> Settings</a>
                                 <div className="border-t border-gray-200 my-2"></div>
-                                <button onClick={logout} className="w-full text-left flex items-center px-4 py-2 text-sm text-red-600 hover:bg-gray-100"><IconLogOut /> Logout</button>
+                                <button onClick={logout} className="w-full text-left flex items-center px-4 py-2 text-sm text-red-600 hover:bg-gray-100"><IconLogOut className="w-4 h-4 mr-2" /> Logout</button>
                             </div>
                         )}
                     </div>

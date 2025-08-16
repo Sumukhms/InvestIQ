@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 // --- Reusable Components (defined within the same file for simplicity) ---
 
@@ -15,11 +16,32 @@ const Logo = () => (
 // --- Main Landing Sign-Up Page Component ---
 const LandingSignUpPage = () => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const [formData, setFormData] = useState({
+        name: '',
+        email: '',
+        password: '',
+    });
+    const [error, setError] = useState('');
+    const { register } = useAuth();
+    const navigate = useNavigate();
 
-    const handleSubmit = (e) => {
+    const { name, email, password } = formData;
+
+    const onChange = e => setFormData({ ...formData, [e.target.name]: e.target.value });
+
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        console.log('Sign-up form submitted');
-        alert('Registration logic would be handled here.');
+        setError(''); // Clear previous errors
+        if (password.length < 6) {
+            setError('Password must be at least 6 characters long.');
+            return;
+        }
+        try {
+            await register(formData);
+            navigate('/dashboard');
+        } catch (err) {
+            setError(err.response?.data?.msg || 'Registration failed. Please try again.');
+        }
     };
 
     const backgroundImageUrl = 'https://images.unsplash.com/photo-1521737604893-d14cc237f11d?q=80&w=1920&auto=format&fit=crop';
@@ -43,7 +65,6 @@ const LandingSignUpPage = () => {
                     <div className="flex justify-between items-center">
                         <Logo />
                         <div className="flex items-center">
-                            {/* Login button now uses <Link> */}
                             <Link to="/login" className="hidden sm:inline-block border border-gray-400 hover:bg-gray-800 hover:text-white transition-colors text-sm font-bold py-2 px-5 rounded-full">
                                 LOGIN
                             </Link>
@@ -52,7 +73,6 @@ const LandingSignUpPage = () => {
                             </button>
                         </div>
                     </div>
-                     {/* Mobile Menu using <Link> */}
                     {isMenuOpen && (
                         <div className="md:hidden mt-4 bg-white rounded-lg shadow-lg p-4 animate-fade-in">
                             <nav className="flex flex-col space-y-3 text-center">
@@ -92,17 +112,18 @@ const LandingSignUpPage = () => {
                             <p className="text-lg mb-6">Receive <span className="text-red-400 font-bold">30 Days FREE Trial.</span></p>
                             
                             <form onSubmit={handleSubmit} className="space-y-5">
+                                {error && <p className="text-red-400 text-sm text-center bg-red-500/10 p-2 rounded-md">{error}</p>}
                                 <div className="animate-fade-in-up" style={{animationDelay: '300ms'}}>
                                     <label htmlFor="name" className="sr-only">Name</label>
-                                    <input id="name" name="name" type="text" required className="w-full bg-white/20 border border-white/30 rounded-md px-4 py-3 text-white placeholder-gray-300 focus:ring-2 focus:ring-red-400 focus:outline-none" placeholder="Name*"/>
+                                    <input id="name" name="name" type="text" value={name} onChange={onChange} required className="w-full bg-white/20 border border-white/30 rounded-md px-4 py-3 text-white placeholder-gray-300 focus:ring-2 focus:ring-red-400 focus:outline-none" placeholder="Name*"/>
                                 </div>
                                  <div className="animate-fade-in-up" style={{animationDelay: '400ms'}}>
                                     <label htmlFor="email" className="sr-only">Email</label>
-                                    <input id="email" name="email" type="email" required className="w-full bg-white/20 border border-white/30 rounded-md px-4 py-3 text-white placeholder-gray-300 focus:ring-2 focus:ring-red-400 focus:outline-none" placeholder="Email*"/>
+                                    <input id="email" name="email" type="email" value={email} onChange={onChange} required className="w-full bg-white/20 border border-white/30 rounded-md px-4 py-3 text-white placeholder-gray-300 focus:ring-2 focus:ring-red-400 focus:outline-none" placeholder="Email*"/>
                                 </div>
                                  <div className="animate-fade-in-up" style={{animationDelay: '500ms'}}>
                                     <label htmlFor="password" className="sr-only">Password</label>
-                                    <input id="password" name="password" type="password" required className="w-full bg-white/20 border border-white/30 rounded-md px-4 py-3 text-white placeholder-gray-300 focus:ring-2 focus:ring-red-400 focus:outline-none" placeholder="Password*"/>
+                                    <input id="password" name="password" type="password" value={password} onChange={onChange} required minLength="6" className="w-full bg-white/20 border border-white/30 rounded-md px-4 py-3 text-white placeholder-gray-300 focus:ring-2 focus:ring-red-400 focus:outline-none" placeholder="Password*"/>
                                 </div>
                                 <div className="animate-fade-in-up" style={{animationDelay: '600ms'}}>
                                     <button type="submit" className="w-full bg-red-500 text-white font-bold py-3 px-8 rounded-md hover:bg-red-600 transition-transform transform hover:scale-105">

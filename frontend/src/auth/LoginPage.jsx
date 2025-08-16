@@ -1,25 +1,35 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext'; // <-- IMPORT THE useAuth HOOK
+import React, { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import AuthLayout from './AuthLayout';
 
 const LoginPage = () => {
-    // Get the login function from our AuthContext
+    const [formData, setFormData] = useState({
+        email: '',
+        password: '',
+    });
+    const [error, setError] = useState('');
     const { login } = useAuth();
+    const navigate = useNavigate();
 
-    const handleSubmit = (e) => {
+    const { email, password } = formData;
+
+    const onChange = e => setFormData({ ...formData, [e.target.name]: e.target.value });
+
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        // In a real app, you would first verify the email and password with your backend API.
-        // For now, we will just call the login function directly.
-        console.log('Login form submitted, calling login()...');
-        
-        // This is the function that sets isLoggedIn to true!
-        login(); 
+        try {
+            await login(formData);
+            navigate('/dashboard'); // Redirect on successful login
+        } catch (err) {
+            setError(err.response.data.msg || 'Login failed');
+        }
     };
 
     return (
         <AuthLayout title="Log In to Your Account">
             <form onSubmit={handleSubmit} className="space-y-6">
+                {error && <p className="text-red-500 text-sm text-center">{error}</p>}
                 <div>
                     <label
                         htmlFor="email"
@@ -31,7 +41,8 @@ const LoginPage = () => {
                         id="email"
                         name="email"
                         type="email"
-                        autoComplete="email"
+                        value={email}
+                        onChange={onChange}
                         required
                         className="w-full bg-gray-700/50 border border-gray-600 rounded-lg px-4 py-2 text-white placeholder-gray-500 focus:ring-2 focus:ring-red-500 focus:outline-none transition"
                         placeholder="you@example.com"
@@ -54,7 +65,8 @@ const LoginPage = () => {
                         id="password"
                         name="password"
                         type="password"
-                        autoComplete="current-password"
+                        value={password}
+                        onChange={onChange}
                         required
                         className="w-full bg-gray-700/50 border border-gray-600 rounded-lg px-4 py-2 text-white placeholder-gray-500 focus:ring-2 focus:ring-red-500 focus:outline-none transition"
                         placeholder="••••••••"
