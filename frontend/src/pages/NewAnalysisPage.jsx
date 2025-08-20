@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api/api';
-import { IconRocket, IconLoader, IconPlus, IconTrash } from '../components/icons';
+import { IconRocket, IconLoader, IconSearch } from '../components/icons';
 
 // --- Helper to calculate progress ---
 const calculateProgress = (formData) => {
@@ -12,7 +12,7 @@ const calculateProgress = (formData) => {
     let filledCount = fields.filter(field => formData[field] && formData[field] !== '').length;
     
     // Add competitor check
-    if (formData.competitors && formData.competitors.length > 0 && formData.competitors[0].name !== '') {
+    if (formData.competitors && formData.competitors.length > 0) {
         filledCount++;
     }
     
@@ -32,10 +32,11 @@ const NewAnalysisPage = () => {
         marketSize: '',
         fundingStage: '',
         revenue: '',
-        competitors: [{ name: '', strength: '' }],
+        competitors: [], // Will be populated automatically
     });
     const [progress, setProgress] = useState(0);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isFetchingCompetitors, setIsFetchingCompetitors] = useState(false);
     const [error, setError] = useState('');
     const navigate = useNavigate();
 
@@ -47,24 +48,28 @@ const NewAnalysisPage = () => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
     };
-
-    const handleCompetitorChange = (index, e) => {
-        const { name, value } = e.target;
-        const newCompetitors = [...formData.competitors];
-        newCompetitors[index][name] = value;
-        setFormData(prev => ({ ...prev, competitors: newCompetitors }));
-    };
-
-    const addCompetitor = () => {
-        setFormData(prev => ({
-            ...prev,
-            competitors: [...prev.competitors, { name: '', strength: '' }]
-        }));
-    };
-
-    const removeCompetitor = (index) => {
-        const newCompetitors = formData.competitors.filter((_, i) => i !== index);
-        setFormData(prev => ({ ...prev, competitors: newCompetitors }));
+    
+    const handleFindCompetitors = async () => {
+        if (!formData.industry || !formData.location) {
+            setError('Please enter Industry and Location to find competitors.');
+            return;
+        }
+        setIsFetchingCompetitors(true);
+        setError('');
+        try {
+            const res = await api.get('/analysis/competitors', {
+                params: {
+                    industry: formData.industry,
+                    location: formData.location
+                }
+            });
+            setFormData(prev => ({ ...prev, competitors: res.data }));
+        } catch (err) {
+            setError('Could not fetch competitors. Please try again.');
+            console.error(err);
+        } finally {
+            setIsFetchingCompetitors(false);
+        }
     };
 
     const handleSubmit = async (e) => {
@@ -151,25 +156,28 @@ const NewAnalysisPage = () => {
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">Competitors</label>
-                                {formData.competitors.map((competitor, index) => (
-                                    <div key={index} className="flex items-center gap-4 mb-3">
-                                        <input type="text" name="name" value={competitor.name} onChange={e => handleCompetitorChange(index, e)}
-                                            className="w-1/2 bg-gray-50 border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-red-500 outline-none"
-                                            placeholder={`Competitor ${index + 1} Name`}
-                                        />
-                                        <input type="text" name="strength" value={competitor.strength} onChange={e => handleCompetitorChange(index, e)}
-                                            className="w-1/2 bg-gray-50 border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-red-500 outline-none"
-                                            placeholder="Their main strength"
-                                        />
-                                        <button type="button" onClick={() => removeCompetitor(index)} className="text-gray-400 hover:text-red-500">
-                                            <IconTrash className="w-5 h-5" />
-                                        </button>
-                                    </div>
-                                ))}
-                                <button type="button" onClick={addCompetitor} className="flex items-center gap-2 text-sm text-red-500 font-semibold hover:text-red-700">
-                                    <IconPlus className="w-4 h-4" /> Add Competitor
+                                <button type="button" onClick={handleFindCompetitors} disabled={isFetchingCompetitors}
+                                    className="flex items-center gap-2 text-sm text-red-500 font-semibold hover:text-red-700 disabled:opacity-50">
+                                    {isFetchingCompetitors ? (
+                                        <>
+                                            <IconLoader className="animate-spin w-4 h-4" />
+                                            Searching...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <IconSearch className="w-4 h-4" />
+                                            Find Competitors
+                                        </>
+                                    )}
                                 </button>
+                                {formData.competitors.length > 0 && (
+                                    <div className="mt-4 space-y-2">
+                                        <h4 className="text-sm font-semibold text-gray-600">Top Competitors Found:</h4>
+                                        <ul className="list-disc list-inside bg-gray-50 p-3 rounded-lg">
+                                            {formData.competitors.map((c, i) => <li key={i}>{c.name}</li>)}
+                                        </ul>
+                                    </div>
+                                )}
                             </div>
                         </fieldset>
 
@@ -202,6 +210,7 @@ const NewAnalysisPage = () => {
                                 </div>
                             </div>
                         </fieldset>
+                        {error && <p className="text-red-500 text-sm text-center">{error}</p>}
 
                         <div className="pt-6 text-center">
                             <button

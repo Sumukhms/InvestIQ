@@ -1,52 +1,89 @@
 from fastapi import FastAPI
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+from typing import List, Optional
 import joblib
 import pandas as pd
+import random
 
 app = FastAPI()
 
-# --- 1. Load the Trained Model ---
-# In a real-world scenario, you would have a separate script to train your model
-# and save it to a file. We'll load a pre-trained model here.
-# For this example, we'll create a dummy model if one doesn't exist.
-try:
-    model = joblib.load('startup_predictor.joblib')
-except FileNotFoundError:
-    # Create and save a dummy model for demonstration purposes
-    from sklearn.ensemble import RandomForestClassifier
-    # Dummy data: [funding_stage_encoded, revenue] -> success (1) or failure (0)
-    X_train = [[0, 5000], [1, 25000], [2, 100000], [0, 1000], [1, 15000], [2, 80000]]
-    y_train = [0, 1, 1, 0, 0, 1]
-    model = RandomForestClassifier()
-    model.fit(X_train, y_train)
-    joblib.dump(model, 'startup_predictor.joblib')
+# --- 1. Define Input and Output Data Models ---
+class Competitor(BaseModel):
+    name: str
+    strength: str
 
-# --- 2. Define the Input Data Model ---
-# This tells FastAPI what kind of data to expect in the request body.
 class StartupFeatures(BaseModel):
+    startupName: str
+    pitch: str
+    problem: str
+    industry: str
+    location: str
+    marketSize: str
     fundingStage: str
     revenue: int
+    competitors: List[Competitor]
 
-# --- 3. Create the Prediction Endpoint ---
-@app.post("/predict")
+class AnalysisScores(BaseModel):
+    marketPotential: int
+    productInnovation: int
+    teamStrength: int
+    financialViability: int
+
+class PredictionResponse(BaseModel):
+    successPercentage: int
+    detailedScores: AnalysisScores
+    risks: List[dict]
+    recommendations: List[dict]
+
+
+# --- 2. Create the Prediction Endpoint ---
+@app.post("/predict", response_model=PredictionResponse)
 def predict_success(data: StartupFeatures):
-    # --- Feature Engineering ---
-    # Convert categorical data (like 'fundingStage') into a number the model can understand.
-    funding_map = {"pre-seed": 0, "seed": 1, "series-a": 2, "series-b": 3, "growth": 4}
-    funding_encoded = funding_map.get(data.fundingStage.lower(), 0)
+    # --- Simulate a more complex scoring logic based on new inputs ---
 
-    # --- Create DataFrame for Prediction ---
-    # The model expects a DataFrame with specific column names.
-    input_df = pd.DataFrame([[funding_encoded, data.revenue]], columns=['funding_stage_encoded', 'revenue'])
+    # Market Potential Score (based on market size and location)
+    market_score = 60
+    if "Billion" in data.marketSize:
+        market_score += 20
+    if any(loc in data.location for loc in ["San Francisco", "New York", "Boston"]):
+        market_score += 15
+    else:
+        market_score += 5
+    
+    # Product Innovation Score (based on pitch and problem)
+    innovation_score = 50
+    if "AI" in data.pitch or "automate" in data.pitch:
+        innovation_score += 25
+    if len(data.problem) > 100:
+        innovation_score += 15
 
-    # --- Make Prediction ---
-    # The model.predict_proba() method returns the probability for each class (e.g., [fail_prob, success_prob]).
-    prediction_proba = model.predict_proba(input_df)
-    success_percentage = round(prediction_proba[0][1] * 100)
+    # Team Strength Score (simulated for now)
+    team_score = random.randint(55, 75)
+
+    # Financial Viability Score (based on revenue and funding)
+    financial_score = 40
+    if data.revenue > 50000:
+        financial_score += 30
+    elif data.revenue > 10000:
+        financial_score += 15
+        
+    funding_map = {"pre-seed": 5, "seed": 10, "series-a": 20}
+    financial_score += funding_map.get(data.fundingStage.lower(), 0)
+
+    # Clamp scores to a max of 95 to be realistic
+    detailed_scores = {
+        "marketPotential": min(market_score, 95),
+        "productInnovation": min(innovation_score, 95),
+        "teamStrength": min(team_score, 95),
+        "financialViability": min(financial_score, 95)
+    }
+
+    # Calculate overall success percentage as the average of the detailed scores
+    overall_score = round(sum(detailed_scores.values()) / len(detailed_scores))
 
     # --- Generate Dummy Risks & Recommendations (for now) ---
     risks = [
-        {"title": "Market Competition", "description": "The target market has several established players."},
+        {"title": "Market Competition", "description": f"The {data.industry} market is highly competitive, with established players."},
         {"title": "Scalability Challenges", "description": "Infrastructure may need significant investment to support rapid growth."}
     ]
     recommendations = [
@@ -55,7 +92,8 @@ def predict_success(data: StartupFeatures):
     ]
 
     return {
-        "successPercentage": success_percentage,
+        "successPercentage": overall_score,
+        "detailedScores": detailed_scores,
         "risks": risks,
         "recommendations": recommendations
     }

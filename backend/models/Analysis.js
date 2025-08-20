@@ -21,6 +21,12 @@ const AnalysisSchema = new mongoose.Schema({
         type: String,
         required: true,
     },
+    industry: {
+        type: String,
+    },
+    location: {
+        type: String,
+    },
     marketSize: {
         type: String,
     },
@@ -30,22 +36,29 @@ const AnalysisSchema = new mongoose.Schema({
     revenue: {
         type: Number,
     },
+    competitors: [{
+        name: String,
+        strength: String,
+    }],
     // --- Fields for Prediction Results ---
     successPercentage: {
         type: Number,
     },
-    risks: [
-        {
-            title: String,
-            description: String,
-        },
-    ],
-    recommendations: [
-        {
-            title: String,
-            description: String,
-        },
-    ],
+    // NEWLY ADDED FIELD
+    detailedScores: {
+        marketPotential: Number,
+        productInnovation: Number,
+        teamStrength: Number,
+        financialViability: Number,
+    },
+    risks: [{
+        title: String,
+        description: String,
+    }, ],
+    recommendations: [{
+        title: String,
+        description: String,
+    }, ],
     createdAt: {
         type: Date,
         default: Date.now,

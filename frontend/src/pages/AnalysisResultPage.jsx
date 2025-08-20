@@ -1,19 +1,7 @@
 import React from 'react';
 import { useLocation, Link } from 'react-router-dom';
+import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer } from 'recharts';
 import { IconAlertTriangle, IconCircleCheck, IconChevronLeft, IconTarget, IconUsers, IconTrendingUp, IconLightbulb, IconChartBar } from '../components/icons';
-
-// In a real app, you'd use a library like 'recharts' or 'chart.js'.
-const RadarChart = ({ data }) => (
-    <div className="relative w-64 h-64 mx-auto my-4">
-        {/* This is a simplified placeholder for a radar chart */}
-        <div className="absolute inset-0 flex items-center justify-center">
-            <div className="w-64 h-64 bg-gray-100 rounded-full"></div>
-        </div>
-        <div className="absolute inset-0 flex items-center justify-center">
-            <p className="text-xl font-bold text-gray-700">Radar Chart Placeholder</p>
-        </div>
-    </div>
-);
 
 const ResultCard = ({ title, icon, children, className }) => (
     <div className={`bg-white border border-gray-200 rounded-2xl shadow-sm p-6 h-full ${className}`}>
@@ -28,24 +16,7 @@ const ResultCard = ({ title, icon, children, className }) => (
 
 const AnalysisResultPage = () => {
     const location = useLocation();
-    const { result: rawResult } = location.state || {};
-
-    // Correctly handle the case where rawResult might be undefined
-    const result = rawResult ? {
-        ...rawResult,
-        detailedScores: {
-            marketPotential: 85,
-            productInnovation: 75,
-            teamStrength: 60,
-            financialViability: 70,
-        },
-        // Corrected syntax for optional chaining
-        competitorInsights: rawResult.competitors?.map(c => ({
-            ...c,
-            threatLevel: Math.floor(Math.random() * 3) + 1
-        })) || []
-    } : null;
-
+    const { result } = location.state || {};
 
     if (!result) {
         return (
@@ -58,7 +29,20 @@ const AnalysisResultPage = () => {
         );
     }
 
-    const overallScore = Math.round(Object.values(result.detailedScores).reduce((a, b) => a + b, 0) / 4);
+    const overallScore = result.successPercentage || 0;
+    const detailedScores = result.detailedScores || {
+        marketPotential: 0,
+        productInnovation: 0,
+        teamStrength: 0,
+        financialViability: 0,
+    };
+    
+    const chartData = [
+        { subject: 'Market', A: detailedScores.marketPotential, fullMark: 100 },
+        { subject: 'Product', A: detailedScores.productInnovation, fullMark: 100 },
+        { subject: 'Team', A: detailedScores.teamStrength, fullMark: 100 },
+        { subject: 'Financials', A: detailedScores.financialViability, fullMark: 100 },
+    ];
 
     return (
         <main className="container mx-auto px-6 py-12">
@@ -75,12 +59,19 @@ const AnalysisResultPage = () => {
                             <div className="text-center">
                                 <p className="text-6xl font-bold text-red-600">{overallScore}/100</p>
                                 <p className="text-gray-500 mb-4">Overall Potential Score</p>
-                                <RadarChart data={result.detailedScores} />
+                                <ResponsiveContainer width="100%" height={300}>
+                                    <RadarChart cx="50%" cy="50%" outerRadius="80%" data={chartData}>
+                                        <PolarGrid />
+                                        <PolarAngleAxis dataKey="subject" />
+                                        <PolarRadiusAxis angle={30} domain={[0, 100]} />
+                                        <Radar name="Score" dataKey="A" stroke="#ef4444" fill="#ef4444" fillOpacity={0.6} />
+                                    </RadarChart>
+                                </ResponsiveContainer>
                                 <ul className="text-left mt-6 space-y-2">
-                                    <li className="flex justify-between"><span><IconTarget className="inline w-4 h-4 mr-2" /> Market Potential</span><strong>{result.detailedScores.marketPotential}</strong></li>
-                                    <li className="flex justify-between"><span><IconLightbulb className="inline w-4 h-4 mr-2" /> Product Innovation</span><strong>{result.detailedScores.productInnovation}</strong></li>
-                                    <li className="flex justify-between"><span><IconUsers className="inline w-4 h-4 mr-2" /> Team Strength</span><strong>{result.detailedScores.teamStrength}</strong></li>
-                                    <li className="flex justify-between"><span><IconTrendingUp className="inline w-4 h-4 mr-2" /> Financial Viability</span><strong>{result.detailedScores.financialViability}</strong></li>
+                                    <li className="flex justify-between"><span><IconTarget className="inline w-4 h-4 mr-2" /> Market Potential</span><strong>{detailedScores.marketPotential}</strong></li>
+                                    <li className="flex justify-between"><span><IconLightbulb className="inline w-4 h-4 mr-2" /> Product Innovation</span><strong>{detailedScores.productInnovation}</strong></li>
+                                    <li className="flex justify-between"><span><IconUsers className="inline w-4 h-4 mr-2" /> Team Strength</span><strong>{detailedScores.teamStrength}</strong></li>
+                                    <li className="flex justify-between"><span><IconTrendingUp className="inline w-4 h-4 mr-2" /> Financial Viability</span><strong>{detailedScores.financialViability}</strong></li>
                                 </ul>
                             </div>
                         </ResultCard>
@@ -88,16 +79,18 @@ const AnalysisResultPage = () => {
 
                     {/* Right Column: Insights */}
                     <div className="lg:col-span-3 space-y-8">
-                        <ResultCard title="Competitive Landscape" icon={<IconUsers className="w-6 h-6 text-purple-500" />}>
-                            <ul className="space-y-4">
-                                {result.competitorInsights.map((c, i) => (
-                                    <li key={i} className="p-3 bg-gray-50 rounded-lg">
-                                        <h4 className="font-semibold text-gray-800">{c.name}</h4>
-                                        <p className="text-gray-600 text-sm"><strong>Key Strength:</strong> {c.strength}</p>
-                                    </li>
-                                ))}
-                            </ul>
-                        </ResultCard>
+                        {result.competitors && result.competitors.length > 0 && (
+                             <ResultCard title="Competitive Landscape" icon={<IconUsers className="w-6 h-6 text-purple-500" />}>
+                                <ul className="space-y-4">
+                                    {result.competitors.map((c, i) => (
+                                        <li key={i} className="p-3 bg-gray-50 rounded-lg">
+                                            <h4 className="font-semibold text-gray-800">{c.name}</h4>
+                                            {c.strength && <p className="text-gray-600 text-sm"><strong>Key Strength:</strong> {c.strength}</p>}
+                                        </li>
+                                    ))}
+                                </ul>
+                            </ResultCard>
+                        )}
 
                         <ResultCard title="Key Risks" icon={<IconAlertTriangle className="w-6 h-6 text-red-500" />}>
                             <ul className="space-y-3">
