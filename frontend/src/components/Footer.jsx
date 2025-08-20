@@ -1,17 +1,18 @@
 import React from 'react';
 
-export default function Footer() {
-  return (
-    <footer id="contact" className="bg-gray-950 text-white text-center p-6 mt-12 rounded-lg shadow-xl">
-      <div className="container mx-auto max-w-4xl">
-        <p className="text-xl font-semibold mb-4">© 2025 InvestIQ. All rights reserved.</p>
-        <div className="flex flex-wrap justify-center gap-6 text-base md:text-lg">
-          <p><strong>Spoorthi:</strong> 9742744250</p>
-          <p><strong>Srikanth:</strong> 8123054408</p>
-          <p><strong>Sumukh:</strong> 9480032940</p>
-          <p><strong>Varshini:</strong> 7411638543</p>
-        </div>
-      </div>
-    </footer>
-  );
-}
+const Footer = () => {
+    return (
+        <footer className="bg-white border-t border-gray-200 mt-auto">
+            <div className="container mx-auto px-6 py-8 text-center text-gray-500">
+                <p>&copy; {new Date().getFullYear()} InvestIQ. All rights reserved.</p>
+                <div className="flex justify-center space-x-6 mt-4">
+                    <a href="#" className="hover:text-red-500 transition-colors">Privacy Policy</a>
+                    <a href="#" className="hover:text-red-500 transition-colors">Terms of Service</a>
+                    <a href="#" className="hover:text-red-500 transition-colors">Contact</a>
+                </div>
+            </div>
+        </footer>
+    );
+};
+
+export default Footer;

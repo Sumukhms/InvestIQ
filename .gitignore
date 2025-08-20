@@ -1,16 +1,57 @@
-# Node
-node_modules/
+--- General ---
+Environment variables
+.env
+.env*.local
+
+Log files
+.log
 npm-debug.log
-yarn-error.log
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
 
-# Python
-__pycache__/
-*.pyc
-venv/
-
-# VSCode
-.vscode/
-
-# OS Files
+OS-generated files
 .DS_Store
 Thumbs.db
+
+--- Node.js / Frontend ---
+Dependencies
+node_modules/
+
+Build output
+dist/
+dist-ssr/
+build/
+
+Local configuration
+*.local
+
+--- Python / ML API ---
+Virtual environment
+venv/
+.venv/
+env/
+.env/
+
+Python cache
+pycache/
+*.pyc
+*.pyo
+*.pyd
+
+Jupyter Notebook checkpoints
+.ipynb_checkpoints
+
+--- Editor Directories ---
+VSCode
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+
+JetBrains (WebStorm, PyCharm)
+.idea/
+
+Sublime Text
+*.sublime-project
+*.sublime-workspace
