@@ -7,14 +7,68 @@ const router = express.Router();
 
 // --- Helper function to find competitors ---
 const findCompetitors = async (industry, location) => {
-    // This is a placeholder for a real search API call
     console.log(`Simulating competitor search for: "${industry}" in "${location}"`);
     return [
         { name: 'Global Tech Inc.', strength: 'Dominant market share' },
         { name: 'Innovate Solutions', strength: 'Strong IP portfolio' },
-        { name: 'NextGen Startups', strength: 'Rapidly growing user base' },
     ];
 };
+
+// --- NEW: Gemini API Helper for Personalized Suggestions ---
+const getPersonalizedInsights = async (ventureData, scores) => {
+    // Construct a detailed prompt with all available data for the best results
+    const prompt = `
+        Analyze the following startup venture based on the data and scores provided.
+        Your goal is to provide highly specific, actionable advice.
+
+        Venture Data:
+        - Name: ${ventureData.startupName}
+        - Industry: ${ventureData.industry}
+        - Pitch: "${ventureData.pitch}"
+        - Key Scores: 
+            - Market Potential: ${scores.detailedScores.marketPotential}/100
+            - Product Innovation: ${scores.detailedScores.productInnovation}/100
+            - Team Strength: ${scores.detailedScores.teamStrength}/100
+            - Financial Viability: ${scores.detailedScores.financialViability}/100
+
+        Based on this, generate:
+        1.  Two "risks" with a "title" and a "description". The risks should be specific to the venture's industry and weakest scores.
+        2.  Two "recommendations" with a "title" and a "description". The recommendations should be actionable and help the founder leverage their strengths and address their weaknesses.
+
+        Return nothing but a JSON object with "risks" and "recommendations" keys.
+    `;
+
+    console.log("--- PROMPT FOR PERSONALIZED SUGGESTIONS ---");
+    console.log(prompt);
+
+    // In a real application, you would call the Gemini API here.
+    // We'll simulate a high-quality response.
+    const mockGeminiResponse = {
+        risks: [
+            {
+                title: "Weakness in Team Composition",
+                description: `Your lowest score is Team Strength (${scores.detailedScores.teamStrength}/100). For a ${ventureData.industry} venture, not having a key member with deep domain expertise or a strong sales background can be a significant risk.`
+            },
+            {
+                title: "Market Entry Barrier",
+                description: "With a high Market Potential score, the market is attractive but likely crowded. Your go-to-market strategy needs to be exceptionally strong to stand out."
+            }
+        ],
+        recommendations: [
+            {
+                title: "Leverage Product Innovation",
+                description: `Your highest score is Product Innovation (${scores.detailedScores.productInnovation}/100). Double down on what makes your product unique. Create marketing content that showcases this innovation to attract early adopters.`
+            },
+            {
+                title: "Recruit a Strategic Advisor",
+                description: "To address the team weakness, consider bringing on an advisor with a strong network in the " + ventureData.industry + " space. This can provide immediate credibility and strategic guidance."
+            }
+        ]
+    };
+
+    return mockGeminiResponse;
+};
+
 
 // --- Route to find competitors ---
 router.get('/competitors', authMiddleware, async (req, res) => {
@@ -26,38 +80,33 @@ router.get('/competitors', authMiddleware, async (req, res) => {
         const competitors = await findCompetitors(industry, location);
         res.json(competitors);
     } catch (err) {
-        console.error('Error fetching competitors:', err.message);
         res.status(500).send('Server Error');
     }
 });
 
-// --- Create a New Analysis & Get Prediction ---
+// --- Create a New Analysis (Hybrid Approach) ---
 router.post('/', authMiddleware, async (req, res) => {
     try {
-        const { startupName, website, pitch, problem, industry, location, marketSize, fundingStage, revenue, competitors } = req.body;
+        const analysisData = { ...req.body, user: req.user.id };
 
-        // 1. Save initial data to the database
-        const newAnalysis = new Analysis({
-            user: req.user.id,
-            startupName, website, pitch, problem, industry, location, marketSize, fundingStage, revenue, competitors
-        });
-        let analysis = await newAnalysis.save();
-
-        // 2. Call the FastAPI ML model with the complete data
+        // STEP 1: Get quantitative scores from our specialized ML model
         const mlApiUrl = process.env.ML_API_URL || 'http://127.0.0.1:8000/predict';
-        const mlResponse = await axios.post(mlApiUrl, {
-            startupName, pitch, problem, industry, location, marketSize, fundingStage, revenue, competitors
-        });
+        const scoringResponse = await axios.post(mlApiUrl, analysisData);
         
-        // 3. Update the analysis with the dynamic prediction results
-        analysis.successPercentage = mlResponse.data.successPercentage;
-        analysis.detailedScores = mlResponse.data.detailedScores; // Save detailed scores
-        analysis.risks = mlResponse.data.risks;
-        analysis.recommendations = mlResponse.data.recommendations;
+        // STEP 2: Get personalized text insights from the generative AI
+        const insights = await getPersonalizedInsights(analysisData, scoringResponse.data);
 
-        const updatedAnalysis = await analysis.save();
-        
-        res.status(201).json(updatedAnalysis);
+        // STEP 3: Combine everything and save to the database
+        const finalAnalysis = new Analysis({
+            ...analysisData,
+            successPercentage: scoringResponse.data.successPercentage,
+            detailedScores: scoringResponse.data.detailedScores,
+            risks: insights.risks,
+            recommendations: insights.recommendations,
+        });
+
+        const savedAnalysis = await finalAnalysis.save();
+        res.status(201).json(savedAnalysis);
 
     } catch (err) {
         console.error('Error in analysis route:', err.response ? err.response.data : err.message);

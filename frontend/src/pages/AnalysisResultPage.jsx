@@ -1,7 +1,7 @@
 import React from 'react';
 import { useLocation, Link } from 'react-router-dom';
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer } from 'recharts';
-import { IconAlertTriangle, IconCircleCheck, IconChevronLeft, IconTarget, IconUsers, IconTrendingUp, IconLightbulb, IconChartBar } from '../components/icons';
+import { IconAlertTriangle, IconCircleCheck, IconChevronLeft, IconTarget, IconUsers, IconTrendingUp, IconLightbulb, IconChartBar, IconAward } from '../components/icons';
 
 const ResultCard = ({ title, icon, children, className }) => (
     <div className={`bg-white border border-gray-200 rounded-2xl shadow-sm p-6 h-full ${className}`}>
@@ -12,6 +12,48 @@ const ResultCard = ({ title, icon, children, className }) => (
         {children}
     </div>
 );
+
+// --- New Personalized Suggestions Component ---
+const PersonalizedSuggestions = ({ scores, overallScore }) => {
+    const getStrongestAndWeakest = () => {
+        let strongest = { name: '', score: 0 };
+        let weakest = { name: '', score: 101 };
+
+        for (const [key, value] of Object.entries(scores)) {
+            if (value > strongest.score) {
+                strongest = { name: key, score: value };
+            }
+            if (value < weakest.score) {
+                weakest = { name: key, score: value };
+            }
+        }
+        return { strongest, weakest };
+    };
+
+    const { strongest, weakest } = getStrongestAndWeakest();
+
+    return (
+        <ResultCard title="Executive Summary" icon={<IconAward className="w-6 h-6 text-yellow-500" />}>
+            <p className="text-gray-600 text-sm mb-4">
+                With an overall score of <strong>{overallScore}/100</strong>, this venture shows significant promise. The analysis indicates a powerful product vision and a substantial market opportunity. Key focus should be on mitigating risks associated with team composition and long-term financial planning.
+            </p>
+            <ul className="space-y-3">
+                <li className="flex items-start">
+                    <IconCircleCheck className="w-5 h-5 text-green-500 mr-2 mt-1 flex-shrink-0" />
+                    <div>
+                        <strong className="font-semibold">Leverage Your Strength:</strong> Capitalize on your high <strong>{strongest.name.replace(/([A-Z])/g, ' $1')}</strong> score ({strongest.score}) to build initial traction and attract investors.
+                    </div>
+                </li>
+                <li className="flex items-start">
+                    <IconAlertTriangle className="w-5 h-5 text-red-500 mr-2 mt-1 flex-shrink-0" />
+                    <div>
+                        <strong className="font-semibold">Address Your Weakness:</strong> Focus strategic efforts on improving your <strong>{weakest.name.replace(/([A-Z])/g, ' $1')}</strong> score ({weakest.score}) to build a more resilient foundation.
+                    </div>
+                </li>
+            </ul>
+        </ResultCard>
+    );
+};
 
 
 const AnalysisResultPage = () => {
@@ -79,6 +121,8 @@ const AnalysisResultPage = () => {
 
                     {/* Right Column: Insights */}
                     <div className="lg:col-span-3 space-y-8">
+                        <PersonalizedSuggestions scores={detailedScores} overallScore={overallScore} />
+
                         {result.competitors && result.competitors.length > 0 && (
                              <ResultCard title="Competitive Landscape" icon={<IconUsers className="w-6 h-6 text-purple-500" />}>
                                 <ul className="space-y-4">
