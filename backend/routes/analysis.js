@@ -8,13 +8,14 @@ const router = express.Router();
 // --- Helper function to find competitors ---
 const findCompetitors = async (industry, location) => {
     console.log(`Simulating competitor search for: "${industry}" in "${location}"`);
+    // In a real application, you would use a service like Google Places API or a business directory API
     return [
         { name: 'Global Tech Inc.', strength: 'Dominant market share' },
         { name: 'Innovate Solutions', strength: 'Strong IP portfolio' },
     ];
 };
 
-// --- NEW: Gemini API Helper for Personalized Suggestions ---
+// --- Gemini API Helper for Personalized Suggestions ---
 const getPersonalizedInsights = async (ventureData, scores) => {
     // Construct a detailed prompt with all available data for the best results
     const prompt = `
@@ -42,7 +43,7 @@ const getPersonalizedInsights = async (ventureData, scores) => {
     console.log(prompt);
 
     // In a real application, you would call the Gemini API here.
-    // We'll simulate a high-quality response.
+    // We'll simulate a high-quality response for demonstration.
     const mockGeminiResponse = {
         risks: [
             {
@@ -70,7 +71,9 @@ const getPersonalizedInsights = async (ventureData, scores) => {
 };
 
 
-// --- Route to find competitors ---
+// @route   GET /api/analysis/competitors
+// @desc    Find competitors based on industry and location
+// @access  Private
 router.get('/competitors', auth, async (req, res) => {
     const { industry, location } = req.query;
     if (!industry || !location) {
@@ -80,16 +83,19 @@ router.get('/competitors', auth, async (req, res) => {
         const competitors = await findCompetitors(industry, location);
         res.json(competitors);
     } catch (err) {
+        console.error('Error finding competitors:', err.message);
         res.status(500).send('Server Error');
     }
 });
 
-// --- Create a New Analysis (Hybrid Approach) ---
+// @route   POST /api/analysis
+// @desc    Create a New Analysis (Hybrid Approach)
+// @access  Private
 router.post('/', auth, async (req, res) => {
     try {
         const analysisData = { ...req.body, user: req.user.id };
 
-        // STEP 1: Get quantitative scores from our specialized ML model
+        // STEP 1: Get quantitative scores from a specialized ML model
         const mlApiUrl = process.env.ML_API_URL || 'http://127.0.0.1:8000/predict';
         const scoringResponse = await axios.post(mlApiUrl, analysisData);
         
@@ -114,7 +120,9 @@ router.post('/', auth, async (req, res) => {
     }
 });
 
-// --- Get All Analyses for a User ---
+// @route   GET /api/analysis
+// @desc    Get All Analyses for a User
+// @access  Private
 router.get('/', auth, async (req, res) => {
     try {
         const analyses = await Analysis.find({ user: req.user.id }).sort({ createdAt: -1 });
@@ -125,9 +133,11 @@ router.get('/', auth, async (req, res) => {
     }
 });
 
-<<<<<<< HEAD
-// --- NEW: Route for AI Idea Generation ---
-router.post('/generate-idea', authMiddleware, async (req, res) => {
+
+// @route   POST /api/analysis/generate-idea
+// @desc    Route for AI Idea Generation
+// @access  Private
+router.post('/generate-idea', auth, async (req, res) => { // Fixed: Changed authMiddleware to auth
     const { keyword } = req.body;
 
     if (!keyword) {
@@ -136,7 +146,6 @@ router.post('/generate-idea', authMiddleware, async (req, res) => {
 
     try {
         // In a real application, this prompt would be sent to the Gemini API.
-        // For now, we simulate the AI's creative response.
         console.log(`Simulating AI idea generation for keyword: "${keyword}"`);
 
         const mockIdeas = [
@@ -152,8 +161,11 @@ router.post('/generate-idea', authMiddleware, async (req, res) => {
         res.status(500).send('Server Error');
     }
 });
-// --- NEW: Route for AI Market Size Estimation ---
-router.post('/market-size', authMiddleware, async (req, res) => {
+
+// @route   POST /api/analysis/market-size
+// @desc    Route for AI Market Size Estimation
+// @access  Private
+router.post('/market-size', auth, async (req, res) => { // Fixed: Changed authMiddleware to auth
     const { industry } = req.body;
     if (!industry) {
         return res.status(400).json({ msg: 'An industry is required.' });
@@ -173,21 +185,23 @@ router.post('/market-size', authMiddleware, async (req, res) => {
         
         res.json(result);
     } catch (err) {
+        console.error('Error estimating market size:', err.message);
         res.status(500).send('Server Error');
     }
 });
 
-module.exports = router;
-=======
-
-// @route   POST /api/financials/analyze
+// @route   POST /api/analysis/financial-analyze
 // @desc    Analyze startup financials and generate projections
 // @access  Private
-router.post('/analyze', auth, async (req, res) => {
+router.post('/financial-analyze', auth, async (req, res) => { // Changed route to be more specific
     try {
         const { startingCash, monthlyRevenue, monthlyExpenses, projectionMonths } = req.body;
 
-        // Perform calculations here
+        // Basic validation
+        if (startingCash == null || monthlyRevenue == null || monthlyExpenses == null || projectionMonths == null) {
+            return res.status(400).json({ msg: 'Please provide all required financial fields.' });
+        }
+
         const netBurnRate = monthlyExpenses - monthlyRevenue;
         const runway = netBurnRate > 0 ? startingCash / netBurnRate : Infinity;
         
@@ -198,13 +212,13 @@ router.post('/analyze', auth, async (req, res) => {
             currentCash -= netBurnRate;
             projectedData.push({
                 month: `Month ${i}`,
-                cashBalance: currentCash
+                cashBalance: currentCash.toFixed(2) // Format to 2 decimal places
             });
         }
 
         res.json({
-            netBurnRate,
-            runway,
+            netBurnRate: netBurnRate.toFixed(2),
+            runway: runway === Infinity ? 'Infinite' : runway.toFixed(2),
             projections: projectedData
         });
 
@@ -214,5 +228,5 @@ router.post('/analyze', auth, async (req, res) => {
     }
 });
 
+// Fixed: Only one module.exports at the end of the file
 module.exports = router;
->>>>>>> 0f5753f (1st commit)
