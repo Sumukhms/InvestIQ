@@ -11,7 +11,6 @@ const calculateProgress = (formData) => {
     ];
     let filledCount = fields.filter(field => formData[field] && formData[field] !== '').length;
     
-    // Add competitor check
     if (formData.competitors && formData.competitors.length > 0) {
         filledCount++;
     }
@@ -173,8 +172,13 @@ const NewAnalysisPage = () => {
                                 {formData.competitors.length > 0 && (
                                     <div className="mt-4 space-y-2">
                                         <h4 className="text-sm font-semibold text-gray-600">Top Competitors Found:</h4>
-                                        <ul className="list-disc list-inside bg-gray-50 p-3 rounded-lg">
-                                            {formData.competitors.map((c, i) => <li key={i}>{c.name}</li>)}
+                                        <ul className="space-y-3 bg-gray-50 p-4 rounded-lg border border-gray-200">
+                                            {formData.competitors.map((c, i) => (
+                                                <li key={i} className="text-gray-800">
+                                                    <span className="font-semibold">{c.name}</span>
+                                                    {c.strength && <p className="text-xs text-gray-500"><strong>Strength:</strong> {c.strength}</p>}
+                                                </li>
+                                            ))}
                                         </ul>
                                     </div>
                                 )}

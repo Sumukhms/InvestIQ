@@ -8,15 +8,16 @@ const router = express.Router();
 // --- Helper function to find competitors ---
 const findCompetitors = async (industry, location) => {
     console.log(`Simulating competitor search for: "${industry}" in "${location}"`);
+    // This is where you could connect to a real competitor API in the future.
     return [
         { name: 'Global Tech Inc.', strength: 'Dominant market share' },
         { name: 'Innovate Solutions', strength: 'Strong IP portfolio' },
+        { name: 'Market Disruptors Co.', strength: 'Agile development cycle' },
     ];
 };
 
-// --- NEW: Gemini API Helper for Personalized Suggestions ---
+// --- Gemini API Helper for Personalized Suggestions ---
 const getPersonalizedInsights = async (ventureData, scores) => {
-    // Construct a detailed prompt with all available data for the best results
     const prompt = `
         Analyze the following startup venture based on the data and scores provided.
         Your goal is to provide highly specific, actionable advice.
@@ -25,7 +26,7 @@ const getPersonalizedInsights = async (ventureData, scores) => {
         - Name: ${ventureData.startupName}
         - Industry: ${ventureData.industry}
         - Pitch: "${ventureData.pitch}"
-        - Key Scores: 
+        - Key Scores:
             - Market Potential: ${scores.detailedScores.marketPotential}/100
             - Product Innovation: ${scores.detailedScores.productInnovation}/100
             - Team Strength: ${scores.detailedScores.teamStrength}/100
@@ -38,39 +39,33 @@ const getPersonalizedInsights = async (ventureData, scores) => {
         Return nothing but a JSON object with "risks" and "recommendations" keys.
     `;
 
-    console.log("--- PROMPT FOR PERSONALIZED SUGGESTIONS ---");
-    console.log(prompt);
-
-    // In a real application, you would call the Gemini API here.
-    // We'll simulate a high-quality response.
-    const mockGeminiResponse = {
+    // Simulating a high-quality response for development
+    return {
         risks: [
             {
                 title: "Weakness in Team Composition",
-                description: `Your lowest score is Team Strength (${scores.detailedScores.teamStrength}/100). For a ${ventureData.industry} venture, not having a key member with deep domain expertise or a strong sales background can be a significant risk.`
+                description: `Your lowest score is Team Strength (${scores.detailedScores.teamStrength}/100). For a ${ventureData.industry} venture, not having a key member with deep domain expertise can be a significant risk.`
             },
             {
                 title: "Market Entry Barrier",
-                description: "With a high Market Potential score, the market is attractive but likely crowded. Your go-to-market strategy needs to be exceptionally strong to stand out."
+                description: "With a high Market Potential score, the market is attractive but likely crowded. Your go-to-market strategy needs to be exceptionally strong."
             }
         ],
         recommendations: [
             {
                 title: "Leverage Product Innovation",
-                description: `Your highest score is Product Innovation (${scores.detailedScores.productInnovation}/100). Double down on what makes your product unique. Create marketing content that showcases this innovation to attract early adopters.`
+                description: `Your highest score is Product Innovation (${scores.detailedScores.productInnovation}/100). Double down on what makes your product unique to attract early adopters.`
             },
             {
                 title: "Recruit a Strategic Advisor",
-                description: "To address the team weakness, consider bringing on an advisor with a strong network in the " + ventureData.industry + " space. This can provide immediate credibility and strategic guidance."
+                description: "To address the team weakness, consider bringing on an advisor with a strong network in the " + ventureData.industry + " space."
             }
         ]
     };
-
-    return mockGeminiResponse;
 };
 
 
-// --- Route to find competitors ---
+// --- Route to find competitors (used by NewAnalysisPage) ---
 router.get('/competitors', authMiddleware, async (req, res) => {
     const { industry, location } = req.query;
     if (!industry || !location) {
@@ -84,25 +79,29 @@ router.get('/competitors', authMiddleware, async (req, res) => {
     }
 });
 
-// --- Create a New Analysis (Hybrid Approach) ---
+// --- Create a New Analysis (Main route) ---
 router.post('/', authMiddleware, async (req, res) => {
     try {
         const analysisData = { ...req.body, user: req.user.id };
 
-        // STEP 1: Get quantitative scores from our specialized ML model
+        // STEP 1: Get quantitative scores from ML model
         const mlApiUrl = process.env.ML_API_URL || 'http://127.0.0.1:8000/predict';
         const scoringResponse = await axios.post(mlApiUrl, analysisData);
-        
-        // STEP 2: Get personalized text insights from the generative AI
+
+        // STEP 2: Get personalized text insights from Gemini
         const insights = await getPersonalizedInsights(analysisData, scoringResponse.data);
 
-        // STEP 3: Combine everything and save to the database
+        // STEP 3: Get competitors (This was the missing piece!)
+        const competitors = await findCompetitors(analysisData.industry, analysisData.location);
+
+        // STEP 4: Combine everything and save to the database
         const finalAnalysis = new Analysis({
             ...analysisData,
             successPercentage: scoringResponse.data.successPercentage,
             detailedScores: scoringResponse.data.detailedScores,
             risks: insights.risks,
             recommendations: insights.recommendations,
+            competitors: competitors, // Ensure competitors are included here
         });
 
         const savedAnalysis = await finalAnalysis.save();
@@ -121,57 +120,6 @@ router.get('/', authMiddleware, async (req, res) => {
         res.json(analyses);
     } catch (err) {
         console.error(err.message);
-        res.status(500).send('Server Error');
-    }
-});
-
-// --- NEW: Route for AI Idea Generation ---
-router.post('/generate-idea', authMiddleware, async (req, res) => {
-    const { keyword } = req.body;
-
-    if (!keyword) {
-        return res.status(400).json({ msg: 'A keyword is required.' });
-    }
-
-    try {
-        // In a real application, this prompt would be sent to the Gemini API.
-        // For now, we simulate the AI's creative response.
-        console.log(`Simulating AI idea generation for keyword: "${keyword}"`);
-
-        const mockIdeas = [
-            `An AI-powered meal planning app for busy professionals focused on ${keyword}.`,
-            `A subscription box service for eco-friendly products related to ${keyword}.`,
-            `A virtual reality (VR) training platform for skills in the ${keyword} industry.`
-        ];
-        
-        res.json({ ideas: mockIdeas });
-
-    } catch (err) {
-        console.error('Error generating ideas:', err.message);
-        res.status(500).send('Server Error');
-    }
-});
-// --- NEW: Route for AI Market Size Estimation ---
-router.post('/market-size', authMiddleware, async (req, res) => {
-    const { industry } = req.body;
-    if (!industry) {
-        return res.status(400).json({ msg: 'An industry is required.' });
-    }
-    try {
-        console.log(`Simulating AI market size estimation for: "${industry}"`);
-        
-        // Mock data for different industries
-        const marketData = {
-            "fintech": { tam: "$12.5 Trillion", insight: "Driven by digital payments and neo-banking." },
-            "healthtech": { tam: "$660 Billion", insight: "Growing rapidly due to AI in diagnostics and telehealth." },
-            "agritech": { tam: "$25 Billion", insight: "Focus on sustainability and supply chain optimization." },
-            "saas": { tam: "$1.2 Trillion", insight: "Dominated by enterprise software, with growing SMB adoption." }
-        };
-
-        const result = marketData[industry.toLowerCase()] || { tam: "N/A", insight: "Select a core industry to see an estimate." };
-        
-        res.json(result);
-    } catch (err) {
         res.status(500).send('Server Error');
     }
 });
