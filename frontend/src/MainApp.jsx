@@ -12,6 +12,7 @@ import NewAnalysisPage from './pages/NewAnalysisPage';
 import FeaturesPage from './pages/FeaturesPage';
 import AboutPage from './pages/AboutPage';
 import AnalysisResultPage from './pages/AnalysisResultPage'; // Import the new page
+import FinancialAnalysisPage from './pages/FinancialAnalysisPage';
 
 const MainApp = () => {
     const { isLoggedIn, isLoading } = useAuth();
@@ -37,6 +38,8 @@ const MainApp = () => {
                         <Route path="/features" element={<FeaturesPage />} />
                         <Route path="/about" element={<AboutPage />} />
                         <Route path="/analysis/:id" element={<AnalysisResultPage />} />
+                        <Route path="/financials" element={<FinancialAnalysisPage />} />
+                        
                         
                         <Route path="/*" element={<Navigate to="/dashboard" replace />} />
                     </Routes>

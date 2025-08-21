@@ -38,6 +38,15 @@ app.get('/', (req, res) => {
     res.send('Backend API is running');
 });
 
+const analysisRoutes = require('./routes/analysis');
+
+// ... (existing code)
+
+// Define Routes
+app.use('/api/analysis', analysisRoutes);
+app.use('/api/auth', require('./routes/auth'));
+app.use('/api/financials', require('./routes/analysis')); // Add this line
+
 
 // --- Server Initialization ---
 const PORT = process.env.PORT || 5000;

@@ -1,7 +1,7 @@
 import React from 'react';
 import { useLocation, Link } from 'react-router-dom';
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer } from 'recharts';
-import { IconAlertTriangle, IconCircleCheck, IconChevronLeft, IconTarget, IconUsers, IconTrendingUp, IconLightbulb, IconChartBar, IconAward } from '../components/icons';
+import { IconAlertTriangle, IconCircleCheck, IconChevronLeft, IconTarget, IconUsers, IconTrendingUp, IconLightbulb, IconChartBar, IconAward } from '../components/Icons.jsx';
 
 const ResultCard = ({ title, icon, children, className }) => (
     <div className={`bg-white border border-gray-200 rounded-2xl shadow-sm p-6 h-full ${className}`}>
@@ -13,7 +13,7 @@ const ResultCard = ({ title, icon, children, className }) => (
     </div>
 );
 
-// --- New Personalized Suggestions Component ---
+// --- Personalized Suggestions Component ---
 const PersonalizedSuggestions = ({ scores, overallScore }) => {
     const getStrongestAndWeakest = () => {
         let strongest = { name: '', score: 0 };
@@ -125,16 +125,16 @@ const AnalysisResultPage = () => {
 
                         {result.competitors && result.competitors.length > 0 && (
                              <ResultCard title="Competitive Landscape" icon={<IconUsers className="w-6 h-6 text-purple-500" />}>
-                                <ul className="space-y-4">
-                                    {result.competitors.map((c, i) => (
-                                        <li key={i} className="p-3 bg-gray-50 rounded-lg">
-                                            <h4 className="font-semibold text-gray-800">{c.name}</h4>
-                                            {c.strength && <p className="text-gray-600 text-sm"><strong>Key Strength:</strong> {c.strength}</p>}
-                                        </li>
-                                    ))}
-                                </ul>
-                            </ResultCard>
-                        )}
+                                 <ul className="space-y-4">
+                                     {result.competitors.map((c, i) => (
+                                         <li key={i} className="p-3 bg-gray-50 rounded-lg">
+                                             <h4 className="font-semibold text-gray-800">{c.name}</h4>
+                                             {c.strength && <p className="text-gray-600 text-sm"><strong>Key Strength:</strong> {c.strength}</p>}
+                                         </li>
+                                     ))}
+                                 </ul>
+                             </ResultCard>
+                         )}
 
                         <ResultCard title="Key Risks" icon={<IconAlertTriangle className="w-6 h-6 text-red-500" />}>
                             <ul className="space-y-3">

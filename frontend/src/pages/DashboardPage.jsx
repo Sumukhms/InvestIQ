@@ -1,16 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import api from '../api/api';
-import { useAuth } from '../context/AuthContext';
+import api from '../api/api.js';
+import { useAuth } from '../context/AuthContext.jsx';
 import {
-  IconChartBar,
-  IconTrendingUp,
-  IconAward,
-  IconPlus,
-  IconFileText,
-  IconChevronRight,
-} from '../components/icons';
+    IconChartBar,
+    IconTrendingUp,
+    IconAward,
+    IconPlus,
+    IconFileText,
+    IconChevronRight,
+} from '../components/Icons.jsx';
 
 // --- Sub-Components ---
 const DashboardHeader = ({ name }) => (
@@ -92,7 +92,7 @@ const EmptyState = () => (
         <h3 className="mt-4 text-xl font-semibold text-gray-800">No Analyses Yet</h3>
         <p className="mt-2 text-gray-600">Your journey begins with the first step. Analyze your venture now.</p>
         <Link to="/new-analysis" className="mt-6 inline-block bg-red-500 hover:bg-red-600 text-white font-semibold py-3 px-6 rounded-lg transition-transform transform hover:scale-105 shadow-lg hover:shadow-red-400/50">
-             Start Your First Analysis
+            Start Your First Analysis
         </Link>
     </div>
 );
@@ -148,9 +148,9 @@ const DashboardSkeleton = () => (
             <div className="h-10 w-40 bg-gray-300 rounded-lg"></div>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
-           <div className="bg-gray-200 h-24 rounded-2xl"></div>
-           <div className="bg-gray-200 h-24 rounded-2xl"></div>
-           <div className="bg-gray-200 h-24 rounded-2xl"></div>
+            <div className="bg-gray-200 h-24 rounded-2xl"></div>
+            <div className="bg-gray-200 h-24 rounded-2xl"></div>
+            <div className="bg-gray-200 h-24 rounded-2xl"></div>
         </div>
         <div className="bg-gray-200 h-80 rounded-2xl"></div>
     </div>
