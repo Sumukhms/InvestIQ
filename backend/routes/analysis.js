@@ -125,4 +125,55 @@ router.get('/', authMiddleware, async (req, res) => {
     }
 });
 
+// --- NEW: Route for AI Idea Generation ---
+router.post('/generate-idea', authMiddleware, async (req, res) => {
+    const { keyword } = req.body;
+
+    if (!keyword) {
+        return res.status(400).json({ msg: 'A keyword is required.' });
+    }
+
+    try {
+        // In a real application, this prompt would be sent to the Gemini API.
+        // For now, we simulate the AI's creative response.
+        console.log(`Simulating AI idea generation for keyword: "${keyword}"`);
+
+        const mockIdeas = [
+            `An AI-powered meal planning app for busy professionals focused on ${keyword}.`,
+            `A subscription box service for eco-friendly products related to ${keyword}.`,
+            `A virtual reality (VR) training platform for skills in the ${keyword} industry.`
+        ];
+        
+        res.json({ ideas: mockIdeas });
+
+    } catch (err) {
+        console.error('Error generating ideas:', err.message);
+        res.status(500).send('Server Error');
+    }
+});
+// --- NEW: Route for AI Market Size Estimation ---
+router.post('/market-size', authMiddleware, async (req, res) => {
+    const { industry } = req.body;
+    if (!industry) {
+        return res.status(400).json({ msg: 'An industry is required.' });
+    }
+    try {
+        console.log(`Simulating AI market size estimation for: "${industry}"`);
+        
+        // Mock data for different industries
+        const marketData = {
+            "fintech": { tam: "$12.5 Trillion", insight: "Driven by digital payments and neo-banking." },
+            "healthtech": { tam: "$660 Billion", insight: "Growing rapidly due to AI in diagnostics and telehealth." },
+            "agritech": { tam: "$25 Billion", insight: "Focus on sustainability and supply chain optimization." },
+            "saas": { tam: "$1.2 Trillion", insight: "Dominated by enterprise software, with growing SMB adoption." }
+        };
+
+        const result = marketData[industry.toLowerCase()] || { tam: "N/A", insight: "Select a core industry to see an estimate." };
+        
+        res.json(result);
+    } catch (err) {
+        res.status(500).send('Server Error');
+    }
+});
+
 module.exports = router;
