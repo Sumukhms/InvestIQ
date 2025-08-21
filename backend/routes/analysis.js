@@ -14,7 +14,7 @@ const findCompetitors = async (industry, location) => {
     ];
 };
 
-// --- NEW: Gemini API Helper for Personalized Suggestions ---
+// --- Gemini API Helper for Personalized Suggestions (MOCK) ---
 const getPersonalizedInsights = async (ventureData, scores) => {
     // Construct a detailed prompt with all available data for the best results
     const prompt = `
@@ -25,7 +25,7 @@ const getPersonalizedInsights = async (ventureData, scores) => {
         - Name: ${ventureData.startupName}
         - Industry: ${ventureData.industry}
         - Pitch: "${ventureData.pitch}"
-        - Key Scores: 
+        - Key Scores:
             - Market Potential: ${scores.detailedScores.marketPotential}/100
             - Product Innovation: ${scores.detailedScores.productInnovation}/100
             - Team Strength: ${scores.detailedScores.teamStrength}/100
@@ -92,7 +92,7 @@ router.post('/', auth, async (req, res) => {
         // STEP 1: Get quantitative scores from our specialized ML model
         const mlApiUrl = process.env.ML_API_URL || 'http://127.0.0.1:8000/predict';
         const scoringResponse = await axios.post(mlApiUrl, analysisData);
-        
+
         // STEP 2: Get personalized text insights from the generative AI
         const insights = await getPersonalizedInsights(analysisData, scoringResponse.data);
 
@@ -136,7 +136,7 @@ router.post('/analyze', auth, async (req, res) => {
         // Perform calculations here
         const netBurnRate = monthlyExpenses - monthlyRevenue;
         const runway = netBurnRate > 0 ? startingCash / netBurnRate : Infinity;
-        
+
         let projectedData = [];
         let currentCash = startingCash;
 
@@ -157,6 +157,58 @@ router.post('/analyze', auth, async (req, res) => {
     } catch (err) {
         console.error(err.message);
         res.status(500).send('Server error');
+    }
+});
+
+// --- NEW: Route for AI Idea Generation ---
+router.post('/generate-idea', auth, async (req, res) => {
+    const { keyword } = req.body;
+
+    if (!keyword) {
+        return res.status(400).json({ msg: 'A keyword is required.' });
+    }
+
+    try {
+        // In a real application, this prompt would be sent to the Gemini API.
+        // For now, we simulate the AI's creative response.
+        console.log(`Simulating AI idea generation for keyword: "${keyword}"`);
+
+        const mockIdeas = [
+            `An AI-powered meal planning app for busy professionals focused on ${keyword}.`,
+            `A subscription box service for eco-friendly products related to ${keyword}.`,
+            `A virtual reality (VR) training platform for skills in the ${keyword} industry.`
+        ];
+
+        res.json({ ideas: mockIdeas });
+
+    } catch (err) {
+        console.error('Error generating ideas:', err.message);
+        res.status(500).send('Server Error');
+    }
+});
+
+// --- NEW: Route for AI Market Size Estimation ---
+router.post('/market-size', auth, async (req, res) => {
+    const { industry } = req.body;
+    if (!industry) {
+        return res.status(400).json({ msg: 'An industry is required.' });
+    }
+    try {
+        console.log(`Simulating AI market size estimation for: "${industry}"`);
+
+        // Mock data for different industries
+        const marketData = {
+            "fintech": { tam: "$12.5 Trillion", insight: "Driven by digital payments and neo-banking." },
+            "healthtech": { tam: "$660 Billion", insight: "Growing rapidly due to AI in diagnostics and telehealth." },
+            "agritech": { tam: "$25 Billion", insight: "Focus on sustainability and supply chain optimization." },
+            "saas": { tam: "$1.2 Trillion", insight: "Dominated by enterprise software, with growing SMB adoption." }
+        };
+
+        const result = marketData[industry.toLowerCase()] || { tam: "N/A", insight: "Select a core industry to see an estimate." };
+
+        res.json(result);
+    } catch (err) {
+        res.status(500).send('Server Error');
     }
 });
 
