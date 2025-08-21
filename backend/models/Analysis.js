@@ -63,6 +63,18 @@ const AnalysisSchema = new mongoose.Schema({
         type: Date,
         default: Date.now,
     },
+     financials: {
+        startingCash: Number,
+        monthlyRevenue: Number,
+        monthlyExpenses: Number,
+        projections: [{
+            month: String,
+            cashBalance: Number
+        }],
+        netBurnRate: Number,
+        runway: Number
+    }
 });
+
 
 module.exports = mongoose.model('Analysis', AnalysisSchema);

@@ -1,7 +1,11 @@
 import React from 'react';
 import { useLocation, Link } from 'react-router-dom';
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer } from 'recharts';
+<<<<<<< HEAD
 import { IconAlertTriangle, IconCircleCheck, IconChevronLeft, IconTarget, IconUsers, IconTrendingUp, IconLightbulb, IconChartBar, IconAward, IconBookOpen, IconDownload } from '../components/icons';
+=======
+import { IconAlertTriangle, IconCircleCheck, IconChevronLeft, IconTarget, IconUsers, IconTrendingUp, IconLightbulb, IconChartBar, IconAward } from '../components/Icons.jsx';
+>>>>>>> 0f5753f (1st commit)
 
 const ResultCard = ({ title, icon, children, className }) => (
     <div className={`bg-white border border-gray-200 rounded-2xl shadow-sm p-6 h-full ${className}`}>
@@ -13,6 +17,10 @@ const ResultCard = ({ title, icon, children, className }) => (
     </div>
 );
 
+<<<<<<< HEAD
+=======
+// --- Personalized Suggestions Component ---
+>>>>>>> 0f5753f (1st commit)
 const PersonalizedSuggestions = ({ scores, overallScore }) => {
     const getStrongestAndWeakest = () => {
         let strongest = { name: '', score: 0 };
@@ -151,6 +159,7 @@ const AnalysisResultPage = () => {
                                <PersonalizedSuggestions scores={detailedScores} overallScore={overallScore} />
                                <VentureGrowthBlueprint industry={result.industry} />
 
+<<<<<<< HEAD
                                {result.competitors && result.competitors.length > 0 && (
                                     <ResultCard title="Competitive Landscape" icon={<IconUsers className="w-6 h-6 text-purple-500" />}>
                                         <ul className="space-y-4">
@@ -165,6 +174,42 @@ const AnalysisResultPage = () => {
                                 )}
                             </div>
                         </div>
+=======
+                        {result.competitors && result.competitors.length > 0 && (
+                             <ResultCard title="Competitive Landscape" icon={<IconUsers className="w-6 h-6 text-purple-500" />}>
+                                 <ul className="space-y-4">
+                                     {result.competitors.map((c, i) => (
+                                         <li key={i} className="p-3 bg-gray-50 rounded-lg">
+                                             <h4 className="font-semibold text-gray-800">{c.name}</h4>
+                                             {c.strength && <p className="text-gray-600 text-sm"><strong>Key Strength:</strong> {c.strength}</p>}
+                                         </li>
+                                     ))}
+                                 </ul>
+                             </ResultCard>
+                         )}
+
+                        <ResultCard title="Key Risks" icon={<IconAlertTriangle className="w-6 h-6 text-red-500" />}>
+                            <ul className="space-y-3">
+                                {result.risks.map((risk, index) => (
+                                    <li key={index} className="border-l-4 border-red-200 pl-4 py-1">
+                                        <h4 className="font-semibold text-gray-800">{risk.title}</h4>
+                                        <p className="text-gray-600 text-sm">{risk.description}</p>
+                                    </li>
+                                ))}
+                            </ul>
+                        </ResultCard>
+
+                        <ResultCard title="Strategic Recommendations" icon={<IconCircleCheck className="w-6 h-6 text-green-500" />}>
+                            <ul className="space-y-3">
+                                {result.recommendations.map((rec, index) => (
+                                    <li key={index} className="border-l-4 border-green-200 pl-4 py-1">
+                                        <h4 className="font-semibold text-gray-800">{rec.title}</h4>
+                                        <p className="text-gray-600 text-sm">{rec.description}</p>
+                                    </li>
+                                ))}
+                            </ul>
+                        </ResultCard>
+>>>>>>> 0f5753f (1st commit)
                     </div>
                 </div>
             </main>

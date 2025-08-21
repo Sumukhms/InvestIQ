@@ -22,4 +22,17 @@ api.interceptors.request.use(config => {
     return config;
 });
 
+// frontend/src/api/api.js
+// (add this function to the existing file)
+
+export const analyzeFinancials = async (data) => {
+    try {
+        const response = await api.post('/api/financials/analyze', data);
+        return response.data;
+    } catch (error) {
+        console.error('Error analyzing financials:', error);
+        throw error;
+    }
+};
+
 export default api;

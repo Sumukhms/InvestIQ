@@ -1,6 +1,6 @@
 const express = require('express');
 const axios = require('axios');
-const authMiddleware = require('../middleware/auth');
+const auth = require('../middleware/auth');
 const Analysis = require('../models/Analysis');
 
 const router = express.Router();
@@ -71,7 +71,7 @@ const getPersonalizedInsights = async (ventureData, scores) => {
 
 
 // --- Route to find competitors ---
-router.get('/competitors', authMiddleware, async (req, res) => {
+router.get('/competitors', auth, async (req, res) => {
     const { industry, location } = req.query;
     if (!industry || !location) {
         return res.status(400).json({ msg: 'Industry and location are required' });
@@ -85,7 +85,7 @@ router.get('/competitors', authMiddleware, async (req, res) => {
 });
 
 // --- Create a New Analysis (Hybrid Approach) ---
-router.post('/', authMiddleware, async (req, res) => {
+router.post('/', auth, async (req, res) => {
     try {
         const analysisData = { ...req.body, user: req.user.id };
 
@@ -115,7 +115,7 @@ router.post('/', authMiddleware, async (req, res) => {
 });
 
 // --- Get All Analyses for a User ---
-router.get('/', authMiddleware, async (req, res) => {
+router.get('/', auth, async (req, res) => {
     try {
         const analyses = await Analysis.find({ user: req.user.id }).sort({ createdAt: -1 });
         res.json(analyses);
@@ -125,6 +125,7 @@ router.get('/', authMiddleware, async (req, res) => {
     }
 });
 
+<<<<<<< HEAD
 // --- NEW: Route for AI Idea Generation ---
 router.post('/generate-idea', authMiddleware, async (req, res) => {
     const { keyword } = req.body;
@@ -177,3 +178,41 @@ router.post('/market-size', authMiddleware, async (req, res) => {
 });
 
 module.exports = router;
+=======
+
+// @route   POST /api/financials/analyze
+// @desc    Analyze startup financials and generate projections
+// @access  Private
+router.post('/analyze', auth, async (req, res) => {
+    try {
+        const { startingCash, monthlyRevenue, monthlyExpenses, projectionMonths } = req.body;
+
+        // Perform calculations here
+        const netBurnRate = monthlyExpenses - monthlyRevenue;
+        const runway = netBurnRate > 0 ? startingCash / netBurnRate : Infinity;
+        
+        let projectedData = [];
+        let currentCash = startingCash;
+
+        for (let i = 1; i <= projectionMonths; i++) {
+            currentCash -= netBurnRate;
+            projectedData.push({
+                month: `Month ${i}`,
+                cashBalance: currentCash
+            });
+        }
+
+        res.json({
+            netBurnRate,
+            runway,
+            projections: projectedData
+        });
+
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server error');
+    }
+});
+
+module.exports = router;
+>>>>>>> 0f5753f (1st commit)

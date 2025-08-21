@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
-import { IconUser, IconSettings, IconLogOut } from './icons';
+import { useAuth } from '../context/AuthContext.jsx';
+import { IconUser, IconSettings, IconLogOut } from './Icons.jsx';
+import { NavLink } from 'react-router-dom';
 
 const Header = () => {
     const [isProfileOpen, setProfileOpen] = useState(false);
@@ -14,12 +15,12 @@ const Header = () => {
         navigate(`/${page}`);
     };
 
-    const NavLink = ({ page, children }) => (
-        <button 
+    const NavLinkComponent = ({ page, children }) => (
+        <button
             onClick={() => handleNavClick(page)}
             className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                activePage === page 
-                ? 'text-red-500' 
+                activePage === page
+                ? 'text-red-500'
                 : 'text-gray-700 hover:text-red-500'
             }`}
         >
@@ -35,10 +36,11 @@ const Header = () => {
                         <span className="text-red-500">Invest</span>IQ
                     </h1>
                     <nav className="hidden md:flex items-center space-x-4">
-                        <NavLink page="dashboard">Dashboard</NavLink>
-                        <NavLink page="features">Features</NavLink>
-                        <NavLink page="new-analysis">New Analysis</NavLink>
-                        <NavLink page="about">About</NavLink>
+                        <NavLinkComponent page="dashboard">Dashboard</NavLinkComponent>
+                        <NavLinkComponent page="features">Features</NavLinkComponent>
+                        <NavLinkComponent page="new-analysis">New Analysis</NavLinkComponent>
+                        <NavLinkComponent page="financials">Financials</NavLinkComponent>
+                        <NavLinkComponent page="about">About</NavLinkComponent>
                     </nav>
                 </div>
                 <div className="flex items-center space-x-4">
