@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+<<<<<<< HEAD
 
 // --- Recreated Icons Component to resolve import errors ---
 const IconRocket = (props) => (
@@ -29,6 +30,9 @@ const IconLoader = (props) => (
         <line x1="16.24" x2="19.07" y1="7.76" y2="4.93"></line>
     </svg>
 );
+=======
+import { IconRocket, IconLoader } from '../components/icons'; // Corrected import path
+>>>>>>> 12d5f4b04109dbbd632764450b03beb5147a0c38
 
 // --- Simplified mock API call to remove external dependency ---
 const mockApi = {
