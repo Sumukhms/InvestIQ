@@ -15,11 +15,7 @@ const findCompetitors = async (industry, location) => {
     ];
 };
 
-<<<<<<< HEAD
-// --- Gemini API Helper for Personalized Suggestions (MOCK) ---
-=======
 // --- Gemini API Helper for Personalized Suggestions ---
->>>>>>> 12d5f4b04109dbbd632764450b03beb5147a0c38
 const getPersonalizedInsights = async (ventureData, scores) => {
     // Construct a detailed prompt with all available data for the best results
     const prompt = `
@@ -75,13 +71,9 @@ const getPersonalizedInsights = async (ventureData, scores) => {
 };
 
 
-<<<<<<< HEAD
-// --- Route to find competitors ---
-=======
 // @route   GET /api/analysis/competitors
 // @desc    Find competitors based on industry and location
 // @access  Private
->>>>>>> 12d5f4b04109dbbd632764450b03beb5147a0c38
 router.get('/competitors', auth, async (req, res) => {
     const { industry, location } = req.query;
     if (!industry || !location) {
@@ -96,13 +88,9 @@ router.get('/competitors', auth, async (req, res) => {
     }
 });
 
-<<<<<<< HEAD
-// --- Create a New Analysis (Hybrid Approach) ---
-=======
 // @route   POST /api/analysis
 // @desc    Create a New Analysis (Hybrid Approach)
 // @access  Private
->>>>>>> 12d5f4b04109dbbd632764450b03beb5147a0c38
 router.post('/', auth, async (req, res) => {
     try {
         const analysisData = { ...req.body, user: req.user.id };
@@ -132,13 +120,9 @@ router.post('/', auth, async (req, res) => {
     }
 });
 
-<<<<<<< HEAD
-// --- Get All Analyses for a User ---
-=======
 // @route   GET /api/analysis
 // @desc    Get All Analyses for a User
 // @access  Private
->>>>>>> 12d5f4b04109dbbd632764450b03beb5147a0c38
 router.get('/', auth, async (req, res) => {
     try {
         const analyses = await Analysis.find({ user: req.user.id }).sort({ createdAt: -1 });
@@ -150,49 +134,10 @@ router.get('/', auth, async (req, res) => {
 });
 
 
-<<<<<<< HEAD
-// @route   POST /api/financials/analyze
-// @desc    Analyze startup financials and generate projections
-// @access  Private
-router.post('/analyze', auth, async (req, res) => {
-    try {
-        const { startingCash, monthlyRevenue, monthlyExpenses, projectionMonths } = req.body;
-
-        // Perform calculations here
-        const netBurnRate = monthlyExpenses - monthlyRevenue;
-        const runway = netBurnRate > 0 ? startingCash / netBurnRate : Infinity;
-
-        let projectedData = [];
-        let currentCash = startingCash;
-
-        for (let i = 1; i <= projectionMonths; i++) {
-            currentCash -= netBurnRate;
-            projectedData.push({
-                month: `Month ${i}`,
-                cashBalance: currentCash
-            });
-        }
-
-        res.json({
-            netBurnRate,
-            runway,
-            projections: projectedData
-        });
-
-    } catch (err) {
-        console.error(err.message);
-        res.status(500).send('Server error');
-    }
-});
-
-// --- NEW: Route for AI Idea Generation ---
-router.post('/generate-idea', auth, async (req, res) => {
-=======
 // @route   POST /api/analysis/generate-idea
 // @desc    Route for AI Idea Generation
 // @access  Private
 router.post('/generate-idea', auth, async (req, res) => { // Fixed: Changed authMiddleware to auth
->>>>>>> 12d5f4b04109dbbd632764450b03beb5147a0c38
     const { keyword } = req.body;
 
     if (!keyword) {
@@ -217,15 +162,10 @@ router.post('/generate-idea', auth, async (req, res) => { // Fixed: Changed auth
     }
 });
 
-<<<<<<< HEAD
-// --- NEW: Route for AI Market Size Estimation ---
-router.post('/market-size', auth, async (req, res) => {
-=======
 // @route   POST /api/analysis/market-size
 // @desc    Route for AI Market Size Estimation
 // @access  Private
 router.post('/market-size', auth, async (req, res) => { // Fixed: Changed authMiddleware to auth
->>>>>>> 12d5f4b04109dbbd632764450b03beb5147a0c38
     const { industry } = req.body;
     if (!industry) {
         return res.status(400).json({ msg: 'An industry is required.' });
@@ -250,8 +190,6 @@ router.post('/market-size', auth, async (req, res) => { // Fixed: Changed authMi
     }
 });
 
-<<<<<<< HEAD
-=======
 // @route   POST /api/analysis/financial-analyze
 // @desc    Analyze startup financials and generate projections
 // @access  Private
@@ -291,5 +229,4 @@ router.post('/financial-analyze', auth, async (req, res) => { // Changed route t
 });
 
 // Fixed: Only one module.exports at the end of the file
->>>>>>> 12d5f4b04109dbbd632764450b03beb5147a0c38
 module.exports = router;

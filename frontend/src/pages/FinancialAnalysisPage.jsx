@@ -1,38 +1,6 @@
 import React, { useState } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-<<<<<<< HEAD
-
-// --- Recreated Icons Component to resolve import errors ---
-const IconRocket = (props) => (
-    <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.75-.75-1.39-4.69-2.5-5.5a4.51 4.51 0 0 0-2 2z"/>
-        <path d="M13.5 15.5c1.5 1.26 2 5 2 5s-3.74-.5-5-2c-.75-.75 1.39-4.69 2.5-5.5a4.51 4.51 0 0 1 2-2z"/>
-        <line x1="12" x2="12" y1="18" y2="10"/>
-        <path d="M12 18a2 2 0 0 0-2 2h4a2 2 0 0 0-2-2z"/>
-        <path d="M18.5 12.5c1.5-1.26 5-2 5-2s-0.5-3.74-2-5c-0.75 0.75-4.69-1.39-5.5-2.5a4.51 4.51 0 0 0-2 2z"/>
-        <path d="M15.5 13.5c1.5-1.26 5-2 5-2s-0.5-3.74-2-5c-0.75 0.75-4.69-1.39-5.5-2.5a4.51 4.51 0 0 0-2 2z"/>
-        <path d="M12 10a2 2 0 0 0-2 2h4a2 2 0 0 0-2-2z"/>
-        <path d="M12 10v4"/>
-        <path d="M12 14v-4"/>
-        <path d="M12 14a2 2 0 0 0-2 2h4a2 2 0 0 0-2-2z"/>
-        <path d="M12 10a2 2 0 0 0-2 2h4a2 2 0 0 0-2-2z"/>
-    </svg>
-);
-const IconLoader = (props) => (
-    <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <line x1="12" x2="12" y1="2" y2="6"></line>
-        <line x1="12" x2="12" y1="18" y2="22"></line>
-        <line x1="4.93" x2="7.76" y1="4.93" y2="7.76"></line>
-        <line x1="16.24" x2="19.07" y1="16.24" y2="19.07"></line>
-        <line x1="2" x2="6" y1="12" y2="12"></line>
-        <line x1="18" x2="22" y1="12" y2="12"></line>
-        <line x1="4.93" x2="7.76" y1="19.07" y2="16.24"></line>
-        <line x1="16.24" x2="19.07" y1="7.76" y2="4.93"></line>
-    </svg>
-);
-=======
 import { IconRocket, IconLoader } from '../components/icons'; // Corrected import path
->>>>>>> 12d5f4b04109dbbd632764450b03beb5147a0c38
 
 // --- Simplified mock API call to remove external dependency ---
 const mockApi = {
