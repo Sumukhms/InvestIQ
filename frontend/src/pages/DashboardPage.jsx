@@ -11,8 +11,9 @@ import {
     IconFileText,
     IconChevronRight,
 } from '../components/Icons.jsx';
+import FundingAlerts from '../components/FundingAlerts.jsx';
 
-// --- Sub-Components ---
+// --- Sub-Components (No changes here) ---
 const DashboardHeader = ({ name }) => (
     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-10">
         <div>
@@ -38,15 +39,14 @@ const StatCard = ({ icon, title, value }) => (
     </div>
 );
 
-// --- NEW: Performance Chart Component ---
 const PerformanceChart = ({ data }) => {
     const chartData = data.map(item => ({
-        name: item.startupName.substring(0, 15), // Shorten name for chart label
+        name: item.startupName.substring(0, 15),
         score: item.successPercentage,
-    })).reverse(); // Reverse to show chronological order
+    })).reverse();
 
     return (
-        <div className="bg-white border border-gray-200 rounded-2xl shadow-lg p-6">
+        <div className="bg-white border border-gray-200 rounded-2xl shadow-lg p-6 h-full">
             <h3 className="text-xl font-bold text-gray-900 mb-4">Performance Over Time</h3>
             <ResponsiveContainer width="100%" height={300}>
                 <AreaChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
@@ -137,7 +137,6 @@ const RecentAnalysesTable = ({ analyses }) => {
     );
 };
 
-// --- Skeleton Loader Component ---
 const DashboardSkeleton = () => (
     <div className="container mx-auto px-6 py-10 animate-pulse">
         <div className="flex justify-between items-center mb-10">
@@ -211,12 +210,25 @@ const DashboardPage = () => {
                 <StatCard icon={<IconAward />} title="Highest Score" value={`${stats.highest}%`} />
             </div>
 
-            {analyses.length > 0 && (
-                <div className="mb-12">
-                    <PerformanceChart data={analyses} />
+            {/* --- MODIFIED SECTION --- */}
+            {/* This grid now holds the Chart and the Funding Alerts side-by-side */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-12 mb-12">
+                <div className="lg:col-span-2">
+                    {analyses.length > 0 ? (
+                        <PerformanceChart data={analyses} />
+                    ) : (
+                        // If no analyses, show a placeholder or nothing
+                        <div className="bg-white border border-gray-200 rounded-2xl shadow-lg p-6 h-full flex items-center justify-center">
+                            <p className="text-gray-500">Your performance chart will appear here after your first analysis.</p>
+                        </div>
+                    )}
                 </div>
-            )}
+                <div>
+                    <FundingAlerts />
+                </div>
+            </div>
 
+            {/* The Analysis History table now sits below, taking the full width */}
             <RecentAnalysesTable analyses={analyses} />
         </div>
     );
