@@ -8,12 +8,43 @@ const router = express.Router();
 // --- Helper function to find competitors ---
 const findCompetitors = async (industry, location) => {
     console.log(`Simulating competitor search for: "${industry}" in "${location}"`);
-    // In a real application, you would use a service like Google Places API or a business directory API
-    return [
-        { name: 'Global Tech Inc.', strength: 'Dominant market share' },
-        { name: 'Innovate Solutions', strength: 'Strong IP portfolio' },
+    
+    // In a real application, you would use a service like Google Places API or a business directory API.
+    // For now, we'll use a more detailed mock database.
+    const mockCompetitorDB = {
+        "fintech": [
+            { name: 'Stripe', strength: 'Developer-friendly APIs' },
+            { name: 'PayPal', strength: 'Global brand recognition' },
+            { name: 'Square', strength: 'Strong presence in SMB payment processing' },
+        ],
+        "healthtech": [
+            { name: 'Teladoc Health', strength: 'Leading telehealth platform' },
+            { name: 'Cerner Corporation', strength: 'Dominant in electronic health records (EHR)' },
+        ],
+        "saas": [
+            { name: 'Salesforce', strength: 'Market leader in CRM' },
+            { name: 'Microsoft 365', strength: 'Ubiquitous in enterprise productivity' },
+        ],
+        "agritech": [
+            { name: 'John Deere', strength: 'Hardware and precision agriculture leader' },
+            { name: 'Farmers Business Network', strength: 'Strong data and analytics platform' },
+        ]
+    };
+
+    const industryKey = industry.toLowerCase();
+    const competitors = mockCompetitorDB[industryKey] || [
+        { name: 'General Competitor A', strength: 'Broad market appeal' },
+        { name: 'General Competitor B', strength: 'Strong brand loyalty' },
     ];
+    
+    // Simulate location-based filtering (optional, for more realism)
+    if (location.toLowerCase().includes("san francisco")) {
+        competitors.push({ name: 'SF-Based Rival', strength: 'Access to venture capital' });
+    }
+
+    return competitors.slice(0, 2); // Return the top 2-3 competitors
 };
+
 
 // --- Gemini API Helper for Personalized Suggestions ---
 const getPersonalizedInsights = async (ventureData, scores) => {

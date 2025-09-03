@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api/api';
-import { IconRocket, IconLoader, IconSearch } from '../components/icons';
+import { IconRocket, IconLoader, IconSearch } from '../components/Icons';
 
 // --- Helper to calculate progress ---
 const calculateProgress = (formData) => {
