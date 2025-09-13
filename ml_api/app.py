@@ -1,143 +1,110 @@
-from fastapi import FastAPI
-from pydantic import BaseModel, Field
-from typing import List, Optional
+# ml_api/app.py
+
 import joblib
 import pandas as pd
 import numpy as np
-import random
+from fastapi import FastAPI
+from pydantic import BaseModel, Field
+from typing import List
 
-app = FastAPI()
-
-# --- 1. Load the trained model and encoders ---
-# These are loaded once when the application starts
+# --- 1. Load the Trained Model and Feature List ---
+# These files are the output from our final training phase
 try:
-    model = joblib.load('startup_predictor.joblib')
-    country_encoder = joblib.load('country_encoder.joblib')
-    state_encoder = joblib.load('state_encoder.joblib')
-    print("Model and encoders loaded successfully!")
+    model = joblib.load("investiq_final_model.joblib")
+    model_features = joblib.load("investiq_final_features.joblib")
+    print("✅ Model and feature list loaded successfully!")
 except FileNotFoundError:
-    print("Error: Model or encoder files not found.")
-    print("Please ensure 'startup_predictor.joblib', 'country_encoder.joblib', and 'state_encoder.joblib' are in the same directory.")
+    print("❌ Model or feature files not found. Please train the model first.")
     model = None
-    country_encoder = None
-    state_encoder = None
+    model_features = []
 
-
-# --- 2. Define Input and Output Data Models ---
-class Competitor(BaseModel):
+# --- 2. Define the Input Data Structure ---
+# This Pydantic model ensures that the data sent to the API has the correct format.
+class StartupData(BaseModel):
     name: str
-    strength: str
+    funding_total_usd: float = Field(..., example=5000000)
+    status: str = Field(..., example="operating")
+    country_code: str = Field(..., example="USA")
+    state_code: str = Field(..., example="CA")
+    region: str = Field(..., example="SF Bay Area")
+    city: str = Field(..., example="San Francisco")
+    funding_rounds: int = Field(..., example=3)
+    founded_at: str = Field(..., example="2018-01-01")
+    first_funding_at: str = Field(..., example="2019-01-01")
+    last_funding_at: str = Field(..., example="2021-01-01")
+    main_category: str = Field(..., example="Software")
 
-class StartupFeatures(BaseModel):
-    # Features used by the actual model
-    funding_total_usd: float
-    funding_rounds: float
-    country_code: str # This will be encoded
-    state_code: str # This will be encoded
+# --- 3. Create the FastAPI Application ---
+app = FastAPI(
+    title="InvestIQ ML API",
+    description="API for predicting startup success using a trained LightGBM model."
+)
 
-    # Additional features for generating detailed scores (can be extended)
-    startupName: str
-    pitch: str
-    problem: str
-    industry: str
-    location: str
-    marketSize: str
-    fundingStage: str
-    revenue: int
-    competitors: List[Competitor]
+# --- 4. Preprocessing Function for Live Data ---
+def preprocess_live_data(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Applies the same feature engineering and transformations from our training phases
+    to new, incoming data.
+    """
+    # --- Feature Engineering ---
+    # Convert dates and create time-based features
+    for col in ["founded_at", "first_funding_at", "last_funding_at"]:
+        df[col] = pd.to_datetime(df[col], errors='coerce')
+    
+    df["age_of_startup"] = (pd.Timestamp.now() - df["founded_at"]).dt.days / 365.25
+    df["funding_duration_years"] = ((df["last_funding_at"] - df["first_funding_at"]).dt.days / 365.25).fillna(0)
+    
+    df["funding_velocity"] = df.apply(
+        lambda row: row['funding_total_usd'] / row['age_of_startup'] if row['age_of_startup'] > 0 else 0, axis=1
+    )
 
+    # --- Location & Competition Features (Simplified for real-time) ---
+    major_hubs = ['CA', 'NY', 'MA', 'TX', 'WA']
+    df['is_in_major_hub'] = df['state_code'].isin(major_hubs).astype(int)
+    # Note: A real implementation would fetch competitor counts from a live database
+    df['competitors_in_category'] = np.random.randint(5, 50) # Placeholder
 
-class AnalysisScores(BaseModel):
-    marketPotential: int
-    productInnovation: int
-    teamStrength: int
-    financialViability: int
+    # --- Align columns with the trained model ---
+    # Create a new DataFrame with the same columns as the training data
+    processed_df = pd.DataFrame(columns=model_features)
+    
+    # Add the engineered features to our new DataFrame
+    for col in df.columns:
+        if col in processed_df.columns:
+            processed_df[col] = df[col]
 
-class PredictionResponse(BaseModel):
-    successPercentage: int
-    detailedScores: AnalysisScores
-    risks: List[dict]
-    recommendations: List[dict]
-
-
-# --- 3. Create the Prediction Endpoint ---
-@app.post("/predict", response_model=PredictionResponse)
-def predict_success(data: StartupFeatures):
-    if not all([model, country_encoder, state_encoder]):
-        return {
-            "successPercentage": 0,
-            "detailedScores": {"marketPotential": 0, "productInnovation": 0, "teamStrength": 0, "financialViability": 0},
-            "risks": [{"title": "Model Not Loaded", "description": "The machine learning model could not be loaded. Please check the server logs."}],
-            "recommendations": []
-        }
-
-    # --- Feature Engineering and Preprocessing ---
-    # Create a DataFrame from the input data
-    input_data = pd.DataFrame([data.dict()])
-
-    # Calculate 'funding_per_round'
-    if input_data['funding_rounds'][0] > 0:
-        input_data['funding_per_round'] = input_data['funding_total_usd'] / input_data['funding_rounds']
-    else:
-        input_data['funding_per_round'] = 0
-    input_data['funding_per_round'].replace([np.inf, -np.inf], 0, inplace=True)
-
-
-    # Use the loaded encoders to transform categorical data
-    try:
-        input_data['country_code'] = country_encoder.transform(input_data['country_code'])
-        input_data['state_code'] = state_encoder.transform(input_data['state_code'])
-    except ValueError as e:
-        # Handle cases where a category was not seen during training
-        return {
-            "successPercentage": 0,
-            "detailedScores": {"marketPotential": 0, "productInnovation": 0, "teamStrength": 0, "financialViability": 0},
-            "risks": [{"title": "Invalid Input", "description": f"Could not process input: {e}"}],
-            "recommendations": [{"title": "Check Location Data", "description": "Please use standard country and state codes (e.g., 'USA', 'CA')."}]
-        }
+    # Fill any missing columns with 0 (for one-hot encoded features not present in the input)
+    processed_df.fillna(0, inplace=True)
+    
+    # Ensure the column order is exactly the same as during training
+    return processed_df[model_features]
 
 
-    # Ensure the columns are in the correct order for the model
-    # This must match the order from the training script
-    feature_order = ['funding_total_usd', 'country_code', 'state_code', 'funding_rounds', 'funding_per_round']
-    processed_input = input_data[feature_order]
+# --- 5. The Prediction Endpoint ---
+@app.post("/predict")
+def predict_success(data: StartupData):
+    if not model:
+        return {"error": "Model is not loaded. Please train the model first."}
 
+    # Convert the incoming data into a pandas DataFrame
+    input_df = pd.DataFrame([data.dict()])
+    
+    # Apply all the necessary transformations
+    processed_df = preprocess_live_data(input_df)
 
-    # --- Make a Prediction ---
-    # The model predicts the probability of success (class 1)
-    prediction_proba = model.predict_proba(processed_input)[0][1]
-    success_percentage = int(prediction_proba * 100)
+    # Make the prediction
+    # model.predict_proba returns probabilities for both classes [Failure, Success]
+    prediction_proba = model.predict_proba(processed_df)[0]
+    success_probability = prediction_proba[1]
 
-    # --- Simulate the detailed scores (as in your original file) ---
-    market_score = random.randint(60, 90)
-    innovation_score = random.randint(50, 85)
-    team_score = random.randint(55, 75)
-    financial_score = random.randint(40, 80)
-
-    detailed_scores = {
-        "marketPotential": market_score,
-        "productInnovation": innovation_score,
-        "teamStrength": team_score,
-        "financialViability": financial_score
-    }
-
-    # --- Generate Dummy Risks & Recommendations ---
-    risks = [
-        {"title": "Market Competition", "description": f"The {data.industry} market is highly competitive."},
-        {"title": "Scalability Challenges", "description": "Infrastructure may need significant investment to support growth."}
-    ]
-    recommendations = [
-        {"title": "Focus on a Niche", "description": "Target a specific sub-segment of the market to establish a strong user base."},
-        {"title": "Develop a Viral Loop", "description": "Incentivize users to share the product to drive organic growth."}
-    ]
-
+    # Return the result
     return {
-        "successPercentage": success_percentage,
-        "detailedScores": detailed_scores,
-        "risks": risks,
-        "recommendations": recommendations
+        "startup_name": data.name,
+        "prediction": "Success" if success_probability >= 0.5 else "Failure", # Using a default 0.5 threshold
+        "success_probability": round(success_probability * 100, 2),
+        "explanation": "The model has analyzed various factors including funding, age, and market category to generate this prediction."
     }
 
 @app.get("/")
 def read_root():
-    return {"message": "InvestIQ ML API is running"}
+    return {"message": "Welcome to the InvestIQ Real-Time Prediction API"}
