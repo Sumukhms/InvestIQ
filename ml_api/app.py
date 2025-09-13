@@ -3,16 +3,39 @@ from pydantic import BaseModel, Field
 from typing import List, Optional
 import joblib
 import pandas as pd
+import numpy as np
 import random
 
 app = FastAPI()
 
-# --- 1. Define Input and Output Data Models ---
+# --- 1. Load the trained model and encoders ---
+# These are loaded once when the application starts
+try:
+    model = joblib.load('startup_predictor.joblib')
+    country_encoder = joblib.load('country_encoder.joblib')
+    state_encoder = joblib.load('state_encoder.joblib')
+    print("Model and encoders loaded successfully!")
+except FileNotFoundError:
+    print("Error: Model or encoder files not found.")
+    print("Please ensure 'startup_predictor.joblib', 'country_encoder.joblib', and 'state_encoder.joblib' are in the same directory.")
+    model = None
+    country_encoder = None
+    state_encoder = None
+
+
+# --- 2. Define Input and Output Data Models ---
 class Competitor(BaseModel):
     name: str
     strength: str
 
 class StartupFeatures(BaseModel):
+    # Features used by the actual model
+    funding_total_usd: float
+    funding_rounds: float
+    country_code: str # This will be encoded
+    state_code: str # This will be encoded
+
+    # Additional features for generating detailed scores (can be extended)
     startupName: str
     pitch: str
     problem: str
@@ -22,6 +45,7 @@ class StartupFeatures(BaseModel):
     fundingStage: str
     revenue: int
     competitors: List[Competitor]
+
 
 class AnalysisScores(BaseModel):
     marketPotential: int
@@ -36,63 +60,79 @@ class PredictionResponse(BaseModel):
     recommendations: List[dict]
 
 
-# --- 2. Create the Prediction Endpoint ---
+# --- 3. Create the Prediction Endpoint ---
 @app.post("/predict", response_model=PredictionResponse)
 def predict_success(data: StartupFeatures):
-    # --- Simulate a more complex scoring logic based on new inputs ---
+    if not all([model, country_encoder, state_encoder]):
+        return {
+            "successPercentage": 0,
+            "detailedScores": {"marketPotential": 0, "productInnovation": 0, "teamStrength": 0, "financialViability": 0},
+            "risks": [{"title": "Model Not Loaded", "description": "The machine learning model could not be loaded. Please check the server logs."}],
+            "recommendations": []
+        }
 
-    # Market Potential Score (based on market size and location)
-    market_score = 60
-    if "Billion" in data.marketSize:
-        market_score += 20
-    if any(loc in data.location for loc in ["San Francisco", "New York", "Boston"]):
-        market_score += 15
+    # --- Feature Engineering and Preprocessing ---
+    # Create a DataFrame from the input data
+    input_data = pd.DataFrame([data.dict()])
+
+    # Calculate 'funding_per_round'
+    if input_data['funding_rounds'][0] > 0:
+        input_data['funding_per_round'] = input_data['funding_total_usd'] / input_data['funding_rounds']
     else:
-        market_score += 5
-    
-    # Product Innovation Score (based on pitch and problem)
-    innovation_score = 50
-    if "AI" in data.pitch or "automate" in data.pitch:
-        innovation_score += 25
-    if len(data.problem) > 100:
-        innovation_score += 15
+        input_data['funding_per_round'] = 0
+    input_data['funding_per_round'].replace([np.inf, -np.inf], 0, inplace=True)
 
-    # Team Strength Score (simulated for now)
+
+    # Use the loaded encoders to transform categorical data
+    try:
+        input_data['country_code'] = country_encoder.transform(input_data['country_code'])
+        input_data['state_code'] = state_encoder.transform(input_data['state_code'])
+    except ValueError as e:
+        # Handle cases where a category was not seen during training
+        return {
+            "successPercentage": 0,
+            "detailedScores": {"marketPotential": 0, "productInnovation": 0, "teamStrength": 0, "financialViability": 0},
+            "risks": [{"title": "Invalid Input", "description": f"Could not process input: {e}"}],
+            "recommendations": [{"title": "Check Location Data", "description": "Please use standard country and state codes (e.g., 'USA', 'CA')."}]
+        }
+
+
+    # Ensure the columns are in the correct order for the model
+    # This must match the order from the training script
+    feature_order = ['funding_total_usd', 'country_code', 'state_code', 'funding_rounds', 'funding_per_round']
+    processed_input = input_data[feature_order]
+
+
+    # --- Make a Prediction ---
+    # The model predicts the probability of success (class 1)
+    prediction_proba = model.predict_proba(processed_input)[0][1]
+    success_percentage = int(prediction_proba * 100)
+
+    # --- Simulate the detailed scores (as in your original file) ---
+    market_score = random.randint(60, 90)
+    innovation_score = random.randint(50, 85)
     team_score = random.randint(55, 75)
+    financial_score = random.randint(40, 80)
 
-    # Financial Viability Score (based on revenue and funding)
-    financial_score = 40
-    if data.revenue > 50000:
-        financial_score += 30
-    elif data.revenue > 10000:
-        financial_score += 15
-        
-    funding_map = {"pre-seed": 5, "seed": 10, "series-a": 20}
-    financial_score += funding_map.get(data.fundingStage.lower(), 0)
-
-    # Clamp scores to a max of 95 to be realistic
     detailed_scores = {
-        "marketPotential": min(market_score, 95),
-        "productInnovation": min(innovation_score, 95),
-        "teamStrength": min(team_score, 95),
-        "financialViability": min(financial_score, 95)
+        "marketPotential": market_score,
+        "productInnovation": innovation_score,
+        "teamStrength": team_score,
+        "financialViability": financial_score
     }
 
-    # Calculate overall success percentage as the average of the detailed scores
-    overall_score = round(sum(detailed_scores.values()) / len(detailed_scores))
-
-    # --- Generate Dummy Risks & Recommendations (for now) ---
+    # --- Generate Dummy Risks & Recommendations ---
     risks = [
-        {"title": "Market Competition", "description": f"The {data.industry} market is highly competitive, with established players."},
-        {"title": "Scalability Challenges", "description": "Infrastructure may need significant investment to support rapid growth."}
+        {"title": "Market Competition", "description": f"The {data.industry} market is highly competitive."},
+        {"title": "Scalability Challenges", "description": "Infrastructure may need significant investment to support growth."}
     ]
     recommendations = [
-        {"title": "Focus on a Niche", "description": "Target a specific sub-segment of the market to establish a strong initial user base."},
+        {"title": "Focus on a Niche", "description": "Target a specific sub-segment of the market to establish a strong user base."},
         {"title": "Develop a Viral Loop", "description": "Incentivize users to share the product to drive organic growth."}
     ]
 
     return {
-        "successPercentage": overall_score,
+        "successPercentage": success_percentage,
         "detailedScores": detailed_scores,
         "risks": risks,
         "recommendations": recommendations
