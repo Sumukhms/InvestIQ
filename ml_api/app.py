@@ -1,103 +1,110 @@
-from fastapi import FastAPI
-from pydantic import BaseModel, Field
-from typing import List, Optional
+# ml_api/app.py
+
 import joblib
 import pandas as pd
-import random
+import numpy as np
+from fastapi import FastAPI
+from pydantic import BaseModel, Field
+from typing import List
 
-app = FastAPI()
+# --- 1. Load the Trained Model and Feature List ---
+# These files are the output from our final training phase
+try:
+    model = joblib.load("investiq_final_model.joblib")
+    model_features = joblib.load("investiq_final_features.joblib")
+    print("✅ Model and feature list loaded successfully!")
+except FileNotFoundError:
+    print("❌ Model or feature files not found. Please train the model first.")
+    model = None
+    model_features = []
 
-# --- 1. Define Input and Output Data Models ---
-class Competitor(BaseModel):
+# --- 2. Define the Input Data Structure ---
+# This Pydantic model ensures that the data sent to the API has the correct format.
+class StartupData(BaseModel):
     name: str
-    strength: str
+    funding_total_usd: float = Field(..., example=5000000)
+    status: str = Field(..., example="operating")
+    country_code: str = Field(..., example="USA")
+    state_code: str = Field(..., example="CA")
+    region: str = Field(..., example="SF Bay Area")
+    city: str = Field(..., example="San Francisco")
+    funding_rounds: int = Field(..., example=3)
+    founded_at: str = Field(..., example="2018-01-01")
+    first_funding_at: str = Field(..., example="2019-01-01")
+    last_funding_at: str = Field(..., example="2021-01-01")
+    main_category: str = Field(..., example="Software")
 
-class StartupFeatures(BaseModel):
-    startupName: str
-    pitch: str
-    problem: str
-    industry: str
-    location: str
-    marketSize: str
-    fundingStage: str
-    revenue: int
-    competitors: List[Competitor]
+# --- 3. Create the FastAPI Application ---
+app = FastAPI(
+    title="InvestIQ ML API",
+    description="API for predicting startup success using a trained LightGBM model."
+)
 
-class AnalysisScores(BaseModel):
-    marketPotential: int
-    productInnovation: int
-    teamStrength: int
-    financialViability: int
-
-class PredictionResponse(BaseModel):
-    successPercentage: int
-    detailedScores: AnalysisScores
-    risks: List[dict]
-    recommendations: List[dict]
-
-
-# --- 2. Create the Prediction Endpoint ---
-@app.post("/predict", response_model=PredictionResponse)
-def predict_success(data: StartupFeatures):
-    # --- Simulate a more complex scoring logic based on new inputs ---
-
-    # Market Potential Score (based on market size and location)
-    market_score = 60
-    if "Billion" in data.marketSize:
-        market_score += 20
-    if any(loc in data.location for loc in ["San Francisco", "New York", "Boston"]):
-        market_score += 15
-    else:
-        market_score += 5
+# --- 4. Preprocessing Function for Live Data ---
+def preprocess_live_data(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Applies the same feature engineering and transformations from our training phases
+    to new, incoming data.
+    """
+    # --- Feature Engineering ---
+    # Convert dates and create time-based features
+    for col in ["founded_at", "first_funding_at", "last_funding_at"]:
+        df[col] = pd.to_datetime(df[col], errors='coerce')
     
-    # Product Innovation Score (based on pitch and problem)
-    innovation_score = 50
-    if "AI" in data.pitch or "automate" in data.pitch:
-        innovation_score += 25
-    if len(data.problem) > 100:
-        innovation_score += 15
+    df["age_of_startup"] = (pd.Timestamp.now() - df["founded_at"]).dt.days / 365.25
+    df["funding_duration_years"] = ((df["last_funding_at"] - df["first_funding_at"]).dt.days / 365.25).fillna(0)
+    
+    df["funding_velocity"] = df.apply(
+        lambda row: row['funding_total_usd'] / row['age_of_startup'] if row['age_of_startup'] > 0 else 0, axis=1
+    )
 
-    # Team Strength Score (simulated for now)
-    team_score = random.randint(55, 75)
+    # --- Location & Competition Features (Simplified for real-time) ---
+    major_hubs = ['CA', 'NY', 'MA', 'TX', 'WA']
+    df['is_in_major_hub'] = df['state_code'].isin(major_hubs).astype(int)
+    # Note: A real implementation would fetch competitor counts from a live database
+    df['competitors_in_category'] = np.random.randint(5, 50) # Placeholder
 
-    # Financial Viability Score (based on revenue and funding)
-    financial_score = 40
-    if data.revenue > 50000:
-        financial_score += 30
-    elif data.revenue > 10000:
-        financial_score += 15
-        
-    funding_map = {"pre-seed": 5, "seed": 10, "series-a": 20}
-    financial_score += funding_map.get(data.fundingStage.lower(), 0)
+    # --- Align columns with the trained model ---
+    # Create a new DataFrame with the same columns as the training data
+    processed_df = pd.DataFrame(columns=model_features)
+    
+    # Add the engineered features to our new DataFrame
+    for col in df.columns:
+        if col in processed_df.columns:
+            processed_df[col] = df[col]
 
-    # Clamp scores to a max of 95 to be realistic
-    detailed_scores = {
-        "marketPotential": min(market_score, 95),
-        "productInnovation": min(innovation_score, 95),
-        "teamStrength": min(team_score, 95),
-        "financialViability": min(financial_score, 95)
-    }
+    # Fill any missing columns with 0 (for one-hot encoded features not present in the input)
+    processed_df.fillna(0, inplace=True)
+    
+    # Ensure the column order is exactly the same as during training
+    return processed_df[model_features]
 
-    # Calculate overall success percentage as the average of the detailed scores
-    overall_score = round(sum(detailed_scores.values()) / len(detailed_scores))
 
-    # --- Generate Dummy Risks & Recommendations (for now) ---
-    risks = [
-        {"title": "Market Competition", "description": f"The {data.industry} market is highly competitive, with established players."},
-        {"title": "Scalability Challenges", "description": "Infrastructure may need significant investment to support rapid growth."}
-    ]
-    recommendations = [
-        {"title": "Focus on a Niche", "description": "Target a specific sub-segment of the market to establish a strong initial user base."},
-        {"title": "Develop a Viral Loop", "description": "Incentivize users to share the product to drive organic growth."}
-    ]
+# --- 5. The Prediction Endpoint ---
+@app.post("/predict")
+def predict_success(data: StartupData):
+    if not model:
+        return {"error": "Model is not loaded. Please train the model first."}
 
+    # Convert the incoming data into a pandas DataFrame
+    input_df = pd.DataFrame([data.dict()])
+    
+    # Apply all the necessary transformations
+    processed_df = preprocess_live_data(input_df)
+
+    # Make the prediction
+    # model.predict_proba returns probabilities for both classes [Failure, Success]
+    prediction_proba = model.predict_proba(processed_df)[0]
+    success_probability = prediction_proba[1]
+
+    # Return the result
     return {
-        "successPercentage": overall_score,
-        "detailedScores": detailed_scores,
-        "risks": risks,
-        "recommendations": recommendations
+        "startup_name": data.name,
+        "prediction": "Success" if success_probability >= 0.5 else "Failure", # Using a default 0.5 threshold
+        "success_probability": round(success_probability * 100, 2),
+        "explanation": "The model has analyzed various factors including funding, age, and market category to generate this prediction."
     }
 
 @app.get("/")
 def read_root():
-    return {"message": "InvestIQ ML API is running"}
+    return {"message": "Welcome to the InvestIQ Real-Time Prediction API"}
