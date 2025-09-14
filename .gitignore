@@ -55,3 +55,15 @@ JetBrains (WebStorm, PyCharm)
 Sublime Text
 *.sublime-project
 *.sublime-workspace
+
+# Ignore all CSV datasets
+*.csv
+
+# But keep small sample datasets if needed
+!sample_*.csv
+
+# Ignore Jupyter notebooks checkpoints
+.ipynb_checkpoints/
+
+# Ignore Python venv
+venv/
