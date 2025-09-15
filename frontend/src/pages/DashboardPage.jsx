@@ -1,17 +1,14 @@
+// frontend/src/pages/DashboardPage.jsx
+
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import api from '../api/api.js';
 import { useAuth } from '../context/AuthContext.jsx';
-import {
-    IconChartBar,
-    IconTrendingUp,
-    IconAward,
-    IconPlus,
-    IconFileText,
-    IconChevronRight,
-} from '../components/Icons.jsx';
-import NewsAlerts from '../components/FundingAlerts.jsx'; // Changed from FundingAlerts
+import { IconPlus, IconFileText, IconChevronRight } from '../components/Icons.jsx';
+import NewsAlerts from '../components/FundingAlerts.jsx';
+import MarketHealth from '../components/MarketHealth.jsx'; // Import new component
+import IPOCalendar from '../components/IPOCalendar.jsx'; // Import new component
 
 // --- Sub-Components (No changes here) ---
 const DashboardHeader = ({ name }) => (
@@ -24,18 +21,6 @@ const DashboardHeader = ({ name }) => (
             <IconPlus className="w-5 h-5" />
             New Analysis
         </Link>
-    </div>
-);
-
-const StatCard = ({ icon, title, value }) => (
-    <div className="bg-white p-6 rounded-2xl border border-gray-200 flex items-center space-x-4 transition-all duration-300 transform hover:-translate-y-1 hover:shadow-xl hover:shadow-red-100">
-        <div className="bg-red-100 p-4 rounded-xl">
-            {React.cloneElement(icon, { className: "w-6 h-6 text-red-500" })}
-        </div>
-        <div>
-            <p className="text-sm text-gray-500">{title}</p>
-            <p className="text-3xl font-bold text-gray-900">{value}</p>
-        </div>
     </div>
 );
 
@@ -66,7 +51,6 @@ const PerformanceChart = ({ data }) => {
         </div>
     );
 };
-
 
 const AnalysisTableRow = ({ analysis, getScoreColor }) => (
     <tr className="hover:bg-red-50 transition-colors">
@@ -159,7 +143,6 @@ const DashboardSkeleton = () => (
 // --- Main DashboardPage Component ---
 const DashboardPage = () => {
     const [analyses, setAnalyses] = useState([]);
-    const [stats, setStats] = useState({ total: 0, average: 0, highest: 0 });
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState('');
     const { user } = useAuth();
@@ -169,7 +152,6 @@ const DashboardPage = () => {
             try {
                 const res = await api.get('/analysis');
                 setAnalyses(res.data);
-                calculateStats(res.data);
             } catch (err) {
                 setError('Failed to fetch analyses.');
                 console.error(err);
@@ -180,17 +162,7 @@ const DashboardPage = () => {
 
         fetchAnalyses();
     }, []);
-
-    const calculateStats = (data) => {
-        if (data.length === 0) return;
-        
-        const total = data.length;
-        const scores = data.map(a => a.successPercentage).filter(s => s != null);
-        const average = scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0;
-        const highest = scores.length > 0 ? Math.max(...scores) : 0;
-
-        setStats({ total, average, highest });
-    };
+    
 
     if (isLoading) {
         return <DashboardSkeleton />;
@@ -205,21 +177,21 @@ const DashboardPage = () => {
             <DashboardHeader name={user?.name || 'User'} />
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
-                <StatCard icon={<IconChartBar />} title="Total Analyses" value={stats.total} />
-                <StatCard icon={<IconTrendingUp />} title="Average Score" value={`${stats.average}%`} />
-                <StatCard icon={<IconAward />} title="Highest Score" value={`${stats.highest}%`} />
+                <div className="lg:col-span-1">
+                    <MarketHealth />
+                </div>
+                <div className="lg:col-span-2">
+                    <IPOCalendar />
+                </div>
             </div>
 
-            {/* --- MODIFIED SECTION --- */}
-            {/* This grid now holds the Chart and the News Alerts side-by-side */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-12 mb-12">
                 <div className="lg:col-span-2">
                     {analyses.length > 0 ? (
                         <PerformanceChart data={analyses} />
                     ) : (
-                        // If no analyses, show a placeholder or nothing
                         <div className="bg-white border border-gray-200 rounded-2xl shadow-lg p-6 h-full flex items-center justify-center">
-                            <p className="text-gray-500">Your performance chart will appear here after your first analysis.</p>
+                            <p className="text-gray-500">Your performance chart will appear here.</p>
                         </div>
                     )}
                 </div>
@@ -228,7 +200,6 @@ const DashboardPage = () => {
                 </div>
             </div>
 
-            {/* The Analysis History table now sits below, taking the full width */}
             <RecentAnalysesTable analyses={analyses} />
         </div>
     );

@@ -1,3 +1,5 @@
+// backend/server.js
+
 const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
@@ -24,9 +26,16 @@ mongoose.connect(mongoUri)
         process.exit(1);
     });
 
-// --- API Routes ---
+// --- API Routes (Corrected and Cleaned) ---
+// All routes starting with /api/auth will be handled by auth.js
 app.use('/api/auth', require('./routes/auth'));
-app.use('/api/analysis', require('./routes/analysis')); // Add analysis routes
+
+// All routes starting with /api/analysis will be handled by analysis.js
+app.use('/api/analysis', require('./routes/analysis'));
+
+// All routes starting with /api/financials will be handled by financials.js
+app.use('/api/financials', require('./routes/financials'));
+
 
 // Test endpoint to ensure the API is working
 app.get('/api/test', (req, res) => {
@@ -37,16 +46,6 @@ app.get('/api/test', (req, res) => {
 app.get('/', (req, res) => {
     res.send('Backend API is running');
 });
-
-const analysisRoutes = require('./routes/analysis');
-
-// ... (existing code)
-
-// Define Routes
-app.use('/api/analysis', analysisRoutes);
-app.use('/api/auth', require('./routes/auth'));
-app.use('/api/financials', require('./routes/analysis')); // Add this line
-
 
 // --- Server Initialization ---
 const PORT = process.env.PORT || 5000;
