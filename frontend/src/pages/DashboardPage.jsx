@@ -11,7 +11,7 @@ import {
     IconFileText,
     IconChevronRight,
 } from '../components/Icons.jsx';
-import FundingAlerts from '../components/FundingAlerts.jsx';
+import NewsAlerts from '../components/FundingAlerts.jsx'; // Changed from FundingAlerts
 
 // --- Sub-Components (No changes here) ---
 const DashboardHeader = ({ name }) => (
@@ -211,7 +211,7 @@ const DashboardPage = () => {
             </div>
 
             {/* --- MODIFIED SECTION --- */}
-            {/* This grid now holds the Chart and the Funding Alerts side-by-side */}
+            {/* This grid now holds the Chart and the News Alerts side-by-side */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-12 mb-12">
                 <div className="lg:col-span-2">
                     {analyses.length > 0 ? (
@@ -224,7 +224,7 @@ const DashboardPage = () => {
                     )}
                 </div>
                 <div>
-                    <FundingAlerts />
+                    <NewsAlerts />
                 </div>
             </div>
 

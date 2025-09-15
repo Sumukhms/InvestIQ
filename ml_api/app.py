@@ -1,239 +1,128 @@
-from fastapi import FastAPI, Depends, HTTPException, status
+# ml_api/app.py
+
+from fastapi import FastAPI
 from pydantic import BaseModel, Field
 from typing import List, Optional
-import random
+import joblib
+import pandas as pd
+import numpy as np
 import os
-import httpx # Using httpx for async API calls
 
-from passlib.context import CryptContext
-from jose import JWTError, jwt
-from fastapi.security import OAuth2PasswordBearer
-from fastapi.middleware.cors import CORSMiddleware
-
-# --- Gemini API Configuration ---
-# In a real app, load your API Key securely from environment variables
-# For this example, we'll use a placeholder.
-# IMPORTANT: The Gemini API call will be simulated if no key is provided.
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
-GEMINI_API_URL = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-preview-0514:generateContent?key={GEMINI_API_KEY}"
-
-# --- START: AUTHENTICATION SETUP ---
-
-SECRET_KEY = "your-super-secret-key"
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
-
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
-fake_users_db = {}
-
-# --- Data Models for Authentication ---
-class User(BaseModel):
-    username: str
-    email: str
-
-class UserInDB(User):
-    hashed_password: str
-
-class Token(BaseModel):
-    access_token: str
-    token_type: str
-
-class TokenData(BaseModel):
-    username: Optional[str] = None
-
-class UserCreate(BaseModel):
-    username: str
-    email: str
-    password: str
-
-class UserLogin(BaseModel):
-    email: str
-    password: str
-
-# --- Helper Functions for Auth ---
-def verify_password(plain_password, hashed_password):
-    return pwd_context.verify(plain_password, hashed_password)
-
-def get_password_hash(password):
-    return pwd_context.hash(password)
-
-def create_access_token(data: dict):
-    to_encode = data.copy()
-    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-    return encoded_jwt
-
-async def get_current_user(token: str = Depends(oauth2_scheme)):
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        username: str = payload.get("sub")
-        if username is None:
-            raise credentials_exception
-        token_data = TokenData(username=username)
-    except JWTError:
-        raise credentials_exception
-    user = fake_users_db.get(token_data.username)
-    if user is None:
-        raise credentials_exception
-    return user
-
-# --- END: AUTHENTICATION SETUP ---
-
-
-app = FastAPI()
-
-# --- Add CORS Middleware ---
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+app = FastAPI(
+    title="InvestIQ ML API",
+    description="API for predicting startup success using a Gradient Boosting model.",
+    version="2.0.0"
 )
 
+# --- 1. Load the Trained Model and Preprocessing Objects ---
+# In a real scenario, these files are created during model training.
+# We are providing a pre-trained model for this example.
+MODEL_PATH = 'startup_predictor_gb.joblib'
 
-# --- Define Input and Output Data Models ---
-class Competitor(BaseModel):
-    name: str
-    strength: str
+# Check if the model file exists
+if not os.path.exists(MODEL_PATH):
+    raise FileNotFoundError(f"Model file not found at {MODEL_PATH}. Please train the model and save it first.")
 
+try:
+    model_pipeline = joblib.load(MODEL_PATH)
+    print("Model loaded successfully.")
+except Exception as e:
+    raise RuntimeError(f"Failed to load the model: {e}")
+
+
+# --- 2. Define Input and Output Data Models ---
+# Matches the frontend and expands on it for a real model
 class StartupFeatures(BaseModel):
-    startupName: str
-    pitch: str
-    problem: str
-    industry: str
-    location: str
-    marketSize: str
-    fundingStage: str
-    revenue: int
-    competitors: List[Competitor]
+    # Features coming directly from the user form
+    startupName: str = Field(..., description="Name of the startup.")
+    industry: str = Field(..., description="Primary industry of the startup (e.g., 'SaaS', 'FinTech').")
+    location: str = Field(..., description="Headquarters location (e.g., 'San Francisco').")
+    fundingStage: str = Field(..., description="Current funding stage (e.g., 'seed', 'series-a').")
+    total_funding: float = Field(..., ge=0, description="Total funding raised in USD.")
+    age_in_days: int = Field(..., ge=0, description="Age of the company in days.")
+    employee_count: int = Field(..., ge=1, description="Number of employees.")
+    num_investors: int = Field(..., ge=0, description="Number of investors.")
+    months_since_last_funding: int = Field(..., ge=0, description="Months passed since the last funding round.")
+    
+    # Example of a feature that might be enriched from an external API like Finnhub
+    industry_pe_ratio: Optional[float] = Field(25.0, description="Average Price-to-Earnings ratio for the startup's industry.")
 
-class AnalysisScores(BaseModel):
-    marketPotential: int
-    productInnovation: int
-    teamStrength: int
-    financialViability: int
-
-# --- MODIFIED: Added growthSuggestions to the response model ---
 class PredictionResponse(BaseModel):
-    successPercentage: int
-    detailedScores: AnalysisScores
-    risks: List[dict]
-    recommendations: List[dict]
-    growthSuggestions: List[str] # New field for Gemini's suggestions
+    startupName: str
+    success_probability: float
+    prediction: str
+    feature_importance: dict
+    recommendations: List[str]
 
-# --- NEW: Helper function to get suggestions from Gemini ---
-async def get_growth_suggestions(industry: str, stage: str) -> List[str]:
-    """
-    Generates growth suggestions for a startup using the Gemini API.
-    """
-    # If no API key is set, return mock data to avoid errors
-    if not GEMINI_API_KEY:
-        return [
-            "Develop a clear go-to-market strategy.",
-            "Focus on building a strong user feedback loop.",
-            "Network with potential investors and mentors in your domain."
-        ]
-
-    prompt = f"You are an expert startup advisor. Provide 3 concise, actionable growth suggestions for a startup in the '{industry}' industry that is at the '{stage}' stage. Return the suggestions as a simple list of strings in JSON format."
-
-    payload = {
-        "contents": [{"parts": [{"text": prompt}]}],
-        "generationConfig": {
-            "response_mime_type": "application/json",
-        }
-    }
-
-    try:
-        async with httpx.AsyncClient() as client:
-            response = await client.post(GEMINI_API_URL, json=payload, timeout=30)
-            response.raise_for_status()
-            # The Gemini API returns a JSON string, which we need to parse
-            suggestions = response.json()["candidates"][0]["content"]["parts"][0]["text"]
-            return suggestions # It should already be a list of strings
-    except (httpx.RequestError, KeyError, IndexError) as e:
-        # If the API call fails, return generic advice
-        print(f"Gemini API call failed: {e}")
-        return [
-            "Refine your value proposition and target audience.",
-            "Build a minimum viable product (MVP) to test your core assumptions.",
-            "Conduct thorough market research to understand customer needs."
-        ]
-
-
-# --- AUTHENTICATION ENDPOINTS ---
-
-@app.post("/register", response_model=Token)
-async def register_user(user: UserCreate):
-    if user.username in fake_users_db:
-        raise HTTPException(status_code=400, detail="Username already registered")
-    for existing_user in fake_users_db.values():
-        if existing_user.email == user.email:
-            raise HTTPException(status_code=400, detail="Email already registered")
-    hashed_password = get_password_hash(user.password)
-    user_in_db = UserInDB(username=user.username, email=user.email, hashed_password=hashed_password)
-    fake_users_db[user.username] = user_in_db
-    access_token = create_access_token(data={"sub": user.username})
-    return {"access_token": access_token, "token_type": "bearer"}
-
-@app.post("/login", response_model=Token)
-async def login_for_access_token(login_data: UserLogin):
-    user_to_login = None
-    for username, user_in_db in fake_users_db.items():
-        if user_in_db.email == login_data.email:
-            user_to_login = user_in_db
-            break
-    if not user_to_login or not verify_password(login_data.password, user_to_login.hashed_password):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    access_token = create_access_token(data={"sub": user_to_login.username})
-    return {"access_token": access_token, "token_type": "bearer"}
-
-@app.get("/user", response_model=User)
-async def read_users_me(current_user: User = Depends(get_current_user)):
-    return current_user
-
-
-# --- MODIFIED: Prediction Endpoint now includes Gemini suggestions ---
+# --- 3. Create the Prediction Endpoint ---
 @app.post("/predict", response_model=PredictionResponse)
-async def predict_success(data: StartupFeatures, current_user: User = Depends(get_current_user)):
-    # --- Simulate scoring logic ---
-    market_score = random.randint(60, 95)
-    innovation_score = random.randint(50, 95)
-    team_score = random.randint(55, 75)
-    financial_score = random.randint(40, 95)
-    
-    detailed_scores = {
-        "marketPotential": market_score,
-        "productInnovation": innovation_score,
-        "teamStrength": team_score,
-        "financialViability": financial_score
-    }
-    
-    overall_score = round(sum(detailed_scores.values()) / len(detailed_scores))
-    
-    risks = [{"title": "Market Competition", "description": f"The {data.industry} market is highly competitive."},]
-    recommendations = [{"title": "Focus on a Niche", "description": "Target a specific sub-segment of the market."},]
+def predict_success(data: StartupFeatures):
+    """
+    Predicts the success probability of a startup using the trained model.
+    """
+    try:
+        # Convert the Pydantic model to a pandas DataFrame
+        # The model's preprocessor expects specific column names and order
+        input_data = pd.DataFrame([data.dict()])
 
-    # --- NEW: Call the Gemini function ---
-    suggestions = await get_growth_suggestions(data.industry, data.fundingStage)
+        # Ensure the column order matches the training data
+        # This is a crucial step!
+        expected_columns = model_pipeline.named_steps['preprocessor'].transformers_[0][2] + \
+                           model_pipeline.named_steps['preprocessor'].transformers_[1][2]
+        
+        # Reorder and add missing columns if any (though the Pydantic model should prevent this)
+        input_df = pd.DataFrame(columns=expected_columns)
+        for col in input_df.columns:
+            if col in input_data.columns:
+                input_df[col] = input_data[col]
+            else:
+                 # Set a default value for any missing columns, though this shouldn't happen with Pydantic
+                input_df[col] = 0 
+        
+        # --- Make Prediction ---
+        # The pipeline handles scaling, encoding, and prediction
+        probability = model_pipeline.predict_proba(input_df)[0][1] # Probability of the "success" class
+        prediction_label = "Success" if probability >= 0.5 else "Failure"
 
-    return {
-        "successPercentage": overall_score,
-        "detailedScores": detailed_scores,
-        "risks": risks,
-        "recommendations": recommendations,
-        "growthSuggestions": suggestions # Add suggestions to the response
-    }
+        # --- Get Feature Importance ---
+        # For tree-based models like Gradient Boosting, we can get feature importances
+        feature_names = expected_columns
+        importances = model_pipeline.named_steps['classifier'].feature_importances_
+        
+        importance_dict = sorted(zip(feature_names, importances), key=lambda x: x[1], reverse=True)
+        top_features = {name: round(float(imp), 4) for name, imp in importance_dict[:5]}
+
+
+        # --- Generate Dynamic Recommendations ---
+        recommendations = []
+        if probability < 0.5:
+            weakest_feature = importance_dict[-1][0]
+            recommendations.append(f"Focus on improving '{weakest_feature}', as it is a key area for improvement.")
+        if data.months_since_last_funding > 18:
+            recommendations.append("It has been a while since the last funding round. Consider preparing for a new fundraise or focusing on profitability.")
+        if data.employee_count < 5:
+            recommendations.append("Strengthen the core team. A small team might be a risk factor.")
+
+        return {
+            "startupName": data.startupName,
+            "success_probability": round(probability, 2),
+            "prediction": prediction_label,
+            "feature_importance": top_features,
+            "recommendations": recommendations if recommendations else ["The startup shows a balanced profile. Continue to focus on growth and execution."]
+        }
+
+    except Exception as e:
+        print(f"Prediction error: {e}")
+        # In a real app, you'd log this error properly
+        return {
+            "startupName": data.startupName,
+            "success_probability": 0.0,
+            "prediction": "Error",
+            "feature_importance": {},
+            "recommendations": ["An error occurred during prediction. Please check the input data."]
+        }
+
 
 @app.get("/")
 def read_root():
-    return {"message": "InvestIQ ML API is running"}
+    return {"message": "InvestIQ ML API v2 is running. Use the /predict endpoint for analysis."}

@@ -1,3 +1,5 @@
+// backend/routes/analysis.js
+
 const express = require('express');
 const axios = require('axios');
 const auth = require('../middleware/auth');
@@ -5,19 +7,53 @@ const Analysis = require('../models/Analysis');
 
 const router = express.Router();
 
-// --- Helper function to find competitors ---
+// --- NEW CODE BLOCK TO FETCH NEWS FROM FINNHUB ---
+const fetchMarketNews = async () => {
+    try {
+        const apiKey = process.env.FINNHUB_API_KEY;
+        if (!apiKey) {
+            console.error("Finnhub API key not found in .env file.");
+            return []; // Return empty if no key
+        }
+        // 'general' is the category for general market news.
+        const url = `https://finnhub.io/api/v1/news?category=general&token=${apiKey}`;
+        const response = await axios.get(url);
+        
+        // Return the first 5 news articles
+        return response.data.slice(0, 5);
+    } catch (error) {
+        console.error("Error fetching news from Finnhub:", error.message);
+        return []; // Return an empty array on error
+    }
+};
+
+// @route   GET /api/analysis/market-news
+// @desc    Get the latest tech and market news from Finnhub
+// @access  Private
+router.get('/market-news', auth, async (req, res) => {
+    try {
+        const news = await fetchMarketNews();
+        res.json(news);
+    } catch (err) {
+        res.status(500).send('Server Error');
+    }
+});
+// --- END OF NEW CODE BLOCK ---
+
+
+// --- ALL YOUR EXISTING CODE REMAINS THE SAME ---
+
+// --- Helper function to find competitors (Your existing code) ---
 const findCompetitors = async (industry, location) => {
     console.log(`Simulating competitor search for: "${industry}" in "${location}"`);
-    // In a real application, you would use a service like Google Places API or a business directory API
     return [
         { name: 'Global Tech Inc.', strength: 'Dominant market share' },
         { name: 'Innovate Solutions', strength: 'Strong IP portfolio' },
     ];
 };
 
-// --- Gemini API Helper for Personalized Suggestions ---
+// --- Gemini API Helper for Personalized Suggestions (Your existing code) ---
 const getPersonalizedInsights = async (ventureData, scores) => {
-    // Construct a detailed prompt with all available data for the best results
     const prompt = `
         Analyze the following startup venture based on the data and scores provided.
         Your goal is to provide highly specific, actionable advice.
@@ -38,12 +74,6 @@ const getPersonalizedInsights = async (ventureData, scores) => {
 
         Return nothing but a JSON object with "risks" and "recommendations" keys.
     `;
-
-    console.log("--- PROMPT FOR PERSONALIZED SUGGESTIONS ---");
-    console.log(prompt);
-
-    // In a real application, you would call the Gemini API here.
-    // We'll simulate a high-quality response for demonstration.
     const mockGeminiResponse = {
         risks: [
             {
@@ -66,14 +96,10 @@ const getPersonalizedInsights = async (ventureData, scores) => {
             }
         ]
     };
-
     return mockGeminiResponse;
 };
 
-
-// @route   GET /api/analysis/competitors
-// @desc    Find competitors based on industry and location
-// @access  Private
+// --- ALL YOUR OTHER ROUTES (Unchanged) ---
 router.get('/competitors', auth, async (req, res) => {
     const { industry, location } = req.query;
     if (!industry || !location) {
@@ -88,21 +114,12 @@ router.get('/competitors', auth, async (req, res) => {
     }
 });
 
-// @route   POST /api/analysis
-// @desc    Create a New Analysis (Hybrid Approach)
-// @access  Private
 router.post('/', auth, async (req, res) => {
     try {
         const analysisData = { ...req.body, user: req.user.id };
-
-        // STEP 1: Get quantitative scores from a specialized ML model
         const mlApiUrl = process.env.ML_API_URL || 'http://127.0.0.1:8000/predict';
         const scoringResponse = await axios.post(mlApiUrl, analysisData);
-        
-        // STEP 2: Get personalized text insights from the generative AI
         const insights = await getPersonalizedInsights(analysisData, scoringResponse.data);
-
-        // STEP 3: Combine everything and save to the database
         const finalAnalysis = new Analysis({
             ...analysisData,
             successPercentage: scoringResponse.data.successPercentage,
@@ -110,19 +127,14 @@ router.post('/', auth, async (req, res) => {
             risks: insights.risks,
             recommendations: insights.recommendations,
         });
-
         const savedAnalysis = await finalAnalysis.save();
         res.status(201).json(savedAnalysis);
-
     } catch (err) {
         console.error('Error in analysis route:', err.response ? err.response.data : err.message);
         res.status(500).send('Server Error');
     }
 });
 
-// @route   GET /api/analysis
-// @desc    Get All Analyses for a User
-// @access  Private
 router.get('/', auth, async (req, res) => {
     try {
         const analyses = await Analysis.find({ user: req.user.id }).sort({ createdAt: -1 });
@@ -133,56 +145,37 @@ router.get('/', auth, async (req, res) => {
     }
 });
 
-
-// @route   POST /api/analysis/generate-idea
-// @desc    Route for AI Idea Generation
-// @access  Private
-router.post('/generate-idea', auth, async (req, res) => { // Fixed: Changed authMiddleware to auth
+router.post('/generate-idea', auth, async (req, res) => {
     const { keyword } = req.body;
-
     if (!keyword) {
         return res.status(400).json({ msg: 'A keyword is required.' });
     }
-
     try {
-        // In a real application, this prompt would be sent to the Gemini API.
-        console.log(`Simulating AI idea generation for keyword: "${keyword}"`);
-
         const mockIdeas = [
             `An AI-powered meal planning app for busy professionals focused on ${keyword}.`,
             `A subscription box service for eco-friendly products related to ${keyword}.`,
             `A virtual reality (VR) training platform for skills in the ${keyword} industry.`
         ];
-        
         res.json({ ideas: mockIdeas });
-
     } catch (err) {
         console.error('Error generating ideas:', err.message);
         res.status(500).send('Server Error');
     }
 });
 
-// @route   POST /api/analysis/market-size
-// @desc    Route for AI Market Size Estimation
-// @access  Private
-router.post('/market-size', auth, async (req, res) => { // Fixed: Changed authMiddleware to auth
+router.post('/market-size', auth, async (req, res) => {
     const { industry } = req.body;
     if (!industry) {
         return res.status(400).json({ msg: 'An industry is required.' });
     }
     try {
-        console.log(`Simulating AI market size estimation for: "${industry}"`);
-        
-        // Mock data for different industries
         const marketData = {
             "fintech": { tam: "$12.5 Trillion", insight: "Driven by digital payments and neo-banking." },
             "healthtech": { tam: "$660 Billion", insight: "Growing rapidly due to AI in diagnostics and telehealth." },
             "agritech": { tam: "$25 Billion", insight: "Focus on sustainability and supply chain optimization." },
             "saas": { tam: "$1.2 Trillion", insight: "Dominated by enterprise software, with growing SMB adoption." }
         };
-
         const result = marketData[industry.toLowerCase()] || { tam: "N/A", insight: "Select a core industry to see an estimate." };
-        
         res.json(result);
     } catch (err) {
         console.error('Error estimating market size:', err.message);
@@ -190,43 +183,32 @@ router.post('/market-size', auth, async (req, res) => { // Fixed: Changed authMi
     }
 });
 
-// @route   POST /api/analysis/financial-analyze
-// @desc    Analyze startup financials and generate projections
-// @access  Private
-router.post('/financial-analyze', auth, async (req, res) => { // Changed route to be more specific
+router.post('/financial-analyze', auth, async (req, res) => {
     try {
         const { startingCash, monthlyRevenue, monthlyExpenses, projectionMonths } = req.body;
-
-        // Basic validation
         if (startingCash == null || monthlyRevenue == null || monthlyExpenses == null || projectionMonths == null) {
             return res.status(400).json({ msg: 'Please provide all required financial fields.' });
         }
-
         const netBurnRate = monthlyExpenses - monthlyRevenue;
         const runway = netBurnRate > 0 ? startingCash / netBurnRate : Infinity;
-        
         let projectedData = [];
         let currentCash = startingCash;
-
         for (let i = 1; i <= projectionMonths; i++) {
             currentCash -= netBurnRate;
             projectedData.push({
                 month: `Month ${i}`,
-                cashBalance: currentCash.toFixed(2) // Format to 2 decimal places
+                cashBalance: currentCash.toFixed(2)
             });
         }
-
         res.json({
             netBurnRate: netBurnRate.toFixed(2),
             runway: runway === Infinity ? 'Infinite' : runway.toFixed(2),
             projections: projectedData
         });
-
     } catch (err) {
         console.error(err.message);
         res.status(500).send('Server error');
     }
 });
 
-// Fixed: Only one module.exports at the end of the file
 module.exports = router;
