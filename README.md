@@ -1,1 +1,1 @@
-# InvestIQ---one-stop-for-startup
+# InvestIQ-one stop for startup
