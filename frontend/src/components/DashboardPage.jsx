@@ -41,7 +41,8 @@ const DashboardPage = () => {
 
     return (
         <div className="p-8 bg-gray-900 min-h-screen text-white">
-            <h1 className="text-4xl font-bold mb-8 text-blue-400">Investor Dashboard</h1>
+            <h1 className="text-4xl font-bold mb-8 text-blue-400">Investor Dashboard</h1> 
+            <h1 className="text-4xl font-bold mb-6 text-blue-400">Dashboard</h1>
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                 {/* Scorecard Component Placeholder (Left Column) */}
