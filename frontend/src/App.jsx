@@ -1,60 +1,49 @@
-// frontend/src/App.jsx
+import React from 'react';
+import { BrowserRouter as Router, Route, Routes, useLocation } from 'react-router-dom';
 
-import React, { useState } from 'react';
-import ScorecardInput from './components/ScorecardInput.jsx';
-import GrowthSuggestions from './components/GrowthSuggestions.jsx';
-
-function App() {
-  const [activeTab, setActiveTab] = useState('scorecard');
-
-  const tabStyles = "px-6 py-2 rounded-t-lg text-lg font-medium transition-colors";
-  const activeStyles = "bg-gray-800 text-blue-400";
-  const inactiveStyles = "bg-gray-700 text-gray-400 hover:bg-gray-600";
-
-  return (
-    <div className="bg-gray-900 min-h-screen text-white font-sans">
-      <header className="pt-8 px-8 max-w-6xl mx-auto">
-        <nav className="flex border-b border-gray-700">
-          <button
-            onClick={() => setActiveTab('scorecard')}
-            className={`${tabStyles} ${activeTab === 'scorecard' ? activeStyles : inactiveStyles}`}
-          >
-            Instant Scorecard
-          </button>
-          <button
-            onClick={() => setActiveTab('suggestions')}
-            className={`${tabStyles} ${activeTab === 'suggestions' ? activeStyles : inactiveStyles}`}
-          >
-            Growth Suggestions
-          </button>
-        </nav>
-      </header>
-      <main>
-        {activeTab === 'scorecard' && <ScorecardInput />}
-        {activeTab === 'suggestions' && <GrowthSuggestions />}
-      </main>
-    </div>
-import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
+// Import Pages and Components
 import LoginPage from './components/LoginPage';
 import SignUpPage from './components/SignUpPage';
-import ForgotPasswordPage from './components/ForgotPasswordPage'; // Import the new page
+import ForgotPasswordPage from './components/ForgotPasswordPage';
+import DashboardPage from './components/DashboardPage';
+import ScorecardInput from './components/ScorecardInput';
+import GrowthSuggestions from './components/GrowthSuggestions';
+import Navbar from './components/Navbar'; // Import the Navbar
 
-// We will add ScorecardPage back later
-// import ScorecardPage from './components/ScorecardPage'; 
+// This is a helper component to wrap the main layout and conditionally show the Navbar
+const AppLayout = () => {
+    const location = useLocation();
+    // Routes where the Navbar should NOT be displayed
+    const noNavbarRoutes = ['/', '/signup', '/forgot-password'];
+
+    // Check if the current path is one of the no-navbar routes
+    const showNavbar = !noNavbarRoutes.includes(location.pathname);
+
+    return (
+        <div className="bg-gray-900 min-h-screen">
+            {showNavbar && <Navbar />}
+            <Routes>
+                {/* Auth Routes (no Navbar) */}
+                <Route path="/" element={<LoginPage />} />
+                <Route path="/signup" element={<SignUpPage />} />
+                <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+
+                {/* App Routes with Navbar */}
+                <Route path="/dashboard" element={<DashboardPage />} />
+                <Route path="/scorecard" element={<ScorecardInput />} />
+                <Route path="/growth-suggestions" element={<GrowthSuggestions />} />
+            </Routes>
+        </div>
+    );
+}
 
 function App() {
   return (
     <Router>
-      <Routes>
-        <Route path="/" element={<LoginPage />} />
-        <Route path="/signup" element={<SignUpPage />} />
-        <Route path="/forgot-password" element={<ForgotPasswordPage />} /> {/* Add the route */}
-        
-        {/* We will add this route back when ScorecardPage is created */}
-        {/* <Route path="/dashboard" element={<ScorecardPage />} />  */}
-      </Routes>
+      <AppLayout />
     </Router>
   );
 }
 
 export default App;
+
