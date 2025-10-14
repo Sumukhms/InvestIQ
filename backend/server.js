@@ -50,8 +50,6 @@ app.post("/api/growth-suggestions", async (req, res) => {
   }
 
   const API_KEY = process.env.GOOGLE_API_KEY;
-
-  // --- Using the exact endpoint from the documentation screenshot ---
   const AI_API_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`;
 
   if (!API_KEY) {
@@ -77,7 +75,6 @@ app.post("/api/growth-suggestions", async (req, res) => {
     }
   `;
 
-  // The request body matches the structure from the documentation
   const requestBody = {
     contents: [{ parts: [{ text: prompt }] }],
     generationConfig: {
@@ -96,6 +93,7 @@ app.post("/api/growth-suggestions", async (req, res) => {
       response.data.candidates[0].content.parts[0].text
     );
     console.log("Received a unique, AI-generated response from Gemini.");
+
 
     res.json(aiSuggestions);
   } catch (error) {
