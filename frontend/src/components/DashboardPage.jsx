@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import axios from 'axios';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 const DashboardPage = () => {
@@ -18,13 +19,23 @@ const DashboardPage = () => {
         }
     }, [location, navigate]);
 
-    const handleLogout = () => {
+    const handleLogout = async () => {
+    try {
+        // Send a request to the server to log the user out
+        await axios.get('http://localhost:5000/api/auth/logout', {
+            withCredentials: true // Important for sending session cookies
+        });
+
         // Clear the token from local storage
         localStorage.removeItem('token');
         alert('You have been logged out.');
         // Redirect to the login page
         navigate('/');
-    };
+    } catch (error) {
+        console.error('Logout failed:', error);
+        alert('Logout failed. Please try again.');
+    }
+};
 
     return (
         <div style={{

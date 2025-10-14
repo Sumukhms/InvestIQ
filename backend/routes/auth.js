@@ -149,4 +149,24 @@ router.get('/google/callback', passport.authenticate('google', { failureRedirect
     });
 });
 
+
+// @route   GET api/auth/logout
+// @desc    Logs user out and destroys session
+router.get('/logout', (req, res, next) => {
+  // req.logout() is a Passport.js function that terminates the login session.
+  req.logout(function(err) {
+    if (err) { return next(err); }
+    // req.session.destroy() removes the session from the server's memory.
+    req.session.destroy((err) => {
+      if (err) {
+        console.error("Failed to destroy session during logout:", err);
+        return res.status(500).json({ msg: 'Failed to destroy session.' });
+      }
+      // This clears the session cookie from the user's browser.
+      res.clearCookie('connect.sid');
+      res.status(200).json({ msg: 'Logout successful.' });
+    });
+  });
+});
+
 module.exports = router;
