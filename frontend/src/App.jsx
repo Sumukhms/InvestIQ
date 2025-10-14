@@ -10,6 +10,9 @@ import ScorecardInput from './components/ScorecardInput';
 import GrowthSuggestions from './components/GrowthSuggestions';
 import PrivacyPolicyPage from './components/PrivacyPolicyPage'; // <-- NEW
 import TermsOfServicePage from './components/TermsOfServicePage';   // <-- NEW
+import FinancialsPage from './components/FinancialsPage';
+import AlertsFeedPage from './components/AlertsFeedPage';
+import CompetitorSetupPage from './components/CompetitorSetupPage';
 import Navbar from './components/Navbar'; 
 
 // This is a helper component to wrap the main layout and conditionally show the Navbar
@@ -39,6 +42,9 @@ const AppLayout = () => {
                 <Route path="/dashboard" element={<DashboardPage />} />
                 <Route path="/scorecard" element={<ScorecardInput />} />
                 <Route path="/growth-suggestions" element={<GrowthSuggestions />} />
+                <Route path="/financials" element={<FinancialsPage />} />
+                <Route path="/alerts" element={<AlertsFeedPage />} />
+                <Route path="/competitor-setup" element={<CompetitorSetupPage />} />  
             </Routes>
         </div>
     );

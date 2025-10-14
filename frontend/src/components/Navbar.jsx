@@ -35,6 +35,16 @@ const Navbar = () => {
                             AI Advisor
                         </Link>
                     </li>
+                    <li className="nav-item">
+                        <Link to="/financials" className="nav-links">
+                              Financials
+                        </Link>
+                    </li>
+                    <li className="nav-item">
+                        <Link to="/alerts" className="nav-links">
+                           Alerts
+                      </Link>
+                    </li>
                 </ul>
                 <button onClick={handleLogout} className="logout-button">
                     Logout
