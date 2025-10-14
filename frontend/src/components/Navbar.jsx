@@ -1,9 +1,14 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import './Navbar.css';
 
 const Navbar = () => {
+    const [isDropdownOpen, setDropdownOpen] = useState(false);
     const navigate = useNavigate();
+
+    const toggleDropdown = () => {
+        setDropdownOpen(!isDropdownOpen);
+    };
 
     const handleLogout = () => {
         // Clear token from local storage to log the user out
@@ -15,7 +20,7 @@ const Navbar = () => {
 
     return (
         <nav className="navbar">
-            <div className="navbar-container">
+            <div className="navbar-left">
                 <Link to="/dashboard" className="navbar-logo">
                     InvestIQ
                 </Link>
@@ -46,13 +51,38 @@ const Navbar = () => {
                       </Link>
                     </li>
                 </ul>
-                <button onClick={handleLogout} className="logout-button">
-                    Logout
-                </button>
+            </div>
+            <div className="navbar-right">
+                <div className="search-container">
+                    <span className="search-icon" role="img" aria-label="search">🔍</span>
+                    <input type="text" placeholder="Search" />
+                </div>
+                <div className="icon-item">
+                    <span className="navbar-icon" role="img" aria-label="messages">💬</span>
+                </div>
+                <div className="icon-item">
+                    <span className="navbar-icon" role="img" aria-label="notifications">🔔</span>
+                </div>
+                <div className="profile-container" onClick={toggleDropdown}>
+                    <img
+                        src="https://via.placeholder.com/40"
+                        alt="Profile"
+                        className="profile-pic"
+                    />
+                    <i className={`arrow ${isDropdownOpen ? 'up' : 'down'}`}></i>
+                    {isDropdownOpen && (
+                        <div className="dropdown-menu">
+                            <Link to="/profile">Profile</Link>
+                            <Link to="/settings">Settings</Link>
+                            <button onClick={handleLogout} className="logout-button-dropdown">
+                                Logout
+                            </button>
+                        </div>
+                    )}
+                </div>
             </div>
         </nav>
     );
 };
 
 export default Navbar;
-
