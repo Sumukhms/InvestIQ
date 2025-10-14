@@ -136,7 +136,7 @@
     background-color: #1A1D2E;
     border: 1px solid #4A4E69;
     color: #EDF2F4;
-    text-decoration: none;
+    text-decoration: none; /* For the google link */
     display: flex;
     justify-content: center;
     align-items: center;
@@ -166,13 +166,16 @@
     margin-bottom: 40px;
 }
 
+/* --- THIS IS THE CORRECTED SECTION --- */
 .quote-container blockquote {
     font-size: 1.6rem; 
     line-height: 1.4; 
     margin-bottom: 15px;
-    white-space: normal;
-    overflow-wrap: break-word;
+    /* This new line tells the text to wrap normally */
+    white-space: normal; 
+    overflow-wrap: break-word; /* Helps break long words if needed */
 }
+/* ------------------------------------ */
 
 .news-ticker {
     background-color: rgba(0,0,0,0.3);
@@ -208,3 +211,4 @@
         max-width: 450px;
     }
 }
+

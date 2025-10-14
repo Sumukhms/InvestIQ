@@ -11,7 +11,6 @@ const ForgotPasswordPage = () => {
         e.preventDefault();
         setMessage('');
         try {
-            // We will build this backend endpoint in the next step
             const url = `http://localhost:5000/api/auth/forgot-password`;
             const res = await axios.post(url, { email });
             setMessage(res.data.msg);

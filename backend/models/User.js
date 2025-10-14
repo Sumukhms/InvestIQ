@@ -1,5 +1,3 @@
-// backend/models/User.js
-
 const mongoose = require('mongoose');
 const Schema = mongoose.Schema;
 
@@ -11,15 +9,22 @@ const UserSchema = new Schema({
     email: {
         type: String,
         required: true,
-        unique: true // No two users can have the same email
+        unique: true
     },
     password: {
         type: String,
-        required: true
+        // Password is not required because of Google OAuth users
     },
     date: {
         type: Date,
         default: Date.now
+    },
+    // --- NEW FIELDS FOR PASSWORD RESET ---
+    resetPasswordToken: {
+        type: String,
+    },
+    resetPasswordExpires: {
+        type: Date,
     }
 });
 
