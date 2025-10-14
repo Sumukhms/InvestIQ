@@ -1,35 +1,52 @@
 // PUT THIS AT THE VERY TOP, BEFORE ANYTHING ELSE
-require('dotenv').config();
+require("dotenv").config();
 
-const express = require('express');
-const cors = require('cors');
-const axios = require('axios');
-require('dotenv').config();
-const mongoose = require('mongoose');
-const passport = require('passport');
-const session = require('express-session');
-
-// We can now remove the separate config file as it's not needed
-// const config = require('./config/config'); 
+const express = require("express");
+const cors = require("cors");
+const axios = require("axios");
+const mongoose = require("mongoose");
+const passport = require("passport");
+const session = require("express-session");
 
 // --- For Debugging: Let's check if the keys are loaded ---
-console.log('SENDGRID_API_KEY loaded:', !!process.env.SENDGRID_API_KEY);
-console.log('EMAIL_USER loaded:', process.env.EMAIL_USER);
+console.log("SENDGRID_API_KEY loaded:", !!process.env.SENDGRID_API_KEY);
+console.log("EMAIL_USER loaded:", process.env.EMAIL_USER);
 // ---------------------------------------------------------
 
-require('./config/passport-setup'); // Passport config
+require("./config/passport-setup"); // Passport config
 
 const app = express();
 const port = process.env.PORT || 5000;
 
+// --- Middleware ---
 app.use(cors());
 app.use(express.json());
+app.use(
+  session({
+    secret: "some_session_secret",
+    resave: false,
+    saveUninitialized: false,
+  })
+);
+app.use(passport.initialize());
+app.use(passport.session());
 
-app.post('/api/growth-suggestions', async (req, res) => {
+// --- Mongoose Connection ---
+mongoose
+  .connect(process.env.MONGO_URI)
+  .then(() => console.log("MongoDB connection established successfully"))
+  .catch((err) => console.error("MongoDB connection error:", err));
+
+// --- Routes ---
+app.use("/api/auth", require("./routes/auth"));
+
+app.post("/api/growth-suggestions", async (req, res) => {
   const { industry, stage, idea } = req.body;
 
   if (!industry || !stage || !idea) {
-    return res.status(400).json({ error: 'Industry, stage, and the startup idea are required.' });
+    return res
+      .status(400)
+      .json({ error: "Industry, stage, and the startup idea are required." });
   }
 
   const API_KEY = process.env.GOOGLE_API_KEY;
@@ -38,7 +55,9 @@ app.post('/api/growth-suggestions', async (req, res) => {
   const AI_API_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`;
 
   if (!API_KEY) {
-    return res.status(500).json({ error: 'Google AI API key is not configured on the server.' });
+    return res
+      .status(500)
+      .json({ error: "Google AI API key is not configured on the server." });
   }
 
   const prompt = `
@@ -63,42 +82,34 @@ app.post('/api/growth-suggestions', async (req, res) => {
     contents: [{ parts: [{ text: prompt }] }],
     generationConfig: {
       response_mime_type: "application/json",
-    }
+    },
   };
 
   try {
     console.log("Sending request to the documented Gemini v1beta endpoint...");
-    
+
     const response = await axios.post(AI_API_ENDPOINT, requestBody, {
-      headers: { 'Content-Type': 'application/json' }
+      headers: { "Content-Type": "application/json" },
     });
 
-    const aiSuggestions = JSON.parse(response.data.candidates[0].content.parts[0].text);
+    const aiSuggestions = JSON.parse(
+      response.data.candidates[0].content.parts[0].text
+    );
     console.log("Received a unique, AI-generated response from Gemini.");
-    
-    res.json(aiSuggestions);
 
+    res.json(aiSuggestions);
   } catch (error) {
-    console.error("Error calling Google AI API:", error.response ? error.response.data : error.message);
-    res.status(500).json({ error: 'Failed to get a response from the AI service.' });
+    console.error(
+      "Error calling Google AI API:",
+      error.response ? error.response.data : error.message
+    );
+    res
+      .status(500)
+      .json({ error: "Failed to get a response from the AI service." });
   }
 });
 
+// --- Start Server ---
 app.listen(port, () => {
   console.log(`InvestIQ MERN Backend is running on port: ${port}`);
-// --- Mongoose Connection ---
-mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log('MongoDB connection established successfully'))
-  .catch(err => console.error('MongoDB connection error:', err));
-
-// --- Passport & Session Middleware ---
-app.use(session({ secret: 'some_session_secret', resave: false, saveUninitialized: false }));
-app.use(passport.initialize());
-app.use(passport.session());
-
-// Define Routes
-app.use('/api/auth', require('./routes/auth'));
-
-app.listen(port, () => {
-    console.log(`Server is running on port: ${port}`);
 });

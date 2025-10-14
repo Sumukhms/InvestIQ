@@ -1,13 +1,18 @@
 // frontend/src/App.jsx
 
-import React, { useState } from 'react';
-import ScorecardInput from './components/ScorecardInput.jsx';
-import GrowthSuggestions from './components/GrowthSuggestions.jsx';
+import React, { useState } from "react";
+import { BrowserRouter as Router, Route, Routes } from "react-router-dom";
+import LoginPage from "./components/LoginPage";
+import SignUpPage from "./components/SignUpPage";
+import ForgotPasswordPage from "./components/ForgotPasswordPage";
+import ScorecardInput from "./components/ScorecardInput.jsx";
+import GrowthSuggestions from "./components/GrowthSuggestions.jsx";
 
-function App() {
-  const [activeTab, setActiveTab] = useState('scorecard');
+function DashboardContent() {
+  const [activeTab, setActiveTab] = useState("scorecard");
 
-  const tabStyles = "px-6 py-2 rounded-t-lg text-lg font-medium transition-colors";
+  const tabStyles =
+    "px-6 py-2 rounded-t-lg text-lg font-medium transition-colors";
   const activeStyles = "bg-gray-800 text-blue-400";
   const inactiveStyles = "bg-gray-700 text-gray-400 hover:bg-gray-600";
 
@@ -16,31 +21,30 @@ function App() {
       <header className="pt-8 px-8 max-w-6xl mx-auto">
         <nav className="flex border-b border-gray-700">
           <button
-            onClick={() => setActiveTab('scorecard')}
-            className={`${tabStyles} ${activeTab === 'scorecard' ? activeStyles : inactiveStyles}`}
+            onClick={() => setActiveTab("scorecard")}
+            className={`${tabStyles} ${
+              activeTab === "scorecard" ? activeStyles : inactiveStyles
+            }`}
           >
             Instant Scorecard
           </button>
           <button
-            onClick={() => setActiveTab('suggestions')}
-            className={`${tabStyles} ${activeTab === 'suggestions' ? activeStyles : inactiveStyles}`}
+            onClick={() => setActiveTab("suggestions")}
+            className={`${tabStyles} ${
+              activeTab === "suggestions" ? activeStyles : inactiveStyles
+            }`}
           >
             Growth Suggestions
           </button>
         </nav>
       </header>
       <main>
-        {activeTab === 'scorecard' && <ScorecardInput />}
-        {activeTab === 'suggestions' && <GrowthSuggestions />}
+        {activeTab === "scorecard" && <ScorecardInput />}
+        {activeTab === "suggestions" && <GrowthSuggestions />}
       </main>
     </div>
-import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
-import LoginPage from './components/LoginPage';
-import SignUpPage from './components/SignUpPage';
-import ForgotPasswordPage from './components/ForgotPasswordPage'; // Import the new page
-
-// We will add ScorecardPage back later
-// import ScorecardPage from './components/ScorecardPage'; 
+  );
+}
 
 function App() {
   return (
@@ -48,10 +52,8 @@ function App() {
       <Routes>
         <Route path="/" element={<LoginPage />} />
         <Route path="/signup" element={<SignUpPage />} />
-        <Route path="/forgot-password" element={<ForgotPasswordPage />} /> {/* Add the route */}
-        
-        {/* We will add this route back when ScorecardPage is created */}
-        {/* <Route path="/dashboard" element={<ScorecardPage />} />  */}
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/dashboard" element={<DashboardContent />} />
       </Routes>
     </Router>
   );
