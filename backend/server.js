@@ -4,13 +4,9 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
-require('dotenv').config();
 const mongoose = require('mongoose');
 const passport = require('passport');
 const session = require('express-session');
-
-// We can now remove the separate config file as it's not needed
-// const config = require('./config/config'); 
 
 // --- For Debugging: Let's check if the keys are loaded ---
 console.log('SENDGRID_API_KEY loaded:', !!process.env.SENDGRID_API_KEY);
@@ -25,6 +21,19 @@ const port = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 
+// --- Mongoose Connection ---
+mongoose.connect(process.env.MONGO_URI)
+  .then(() => console.log('MongoDB connection established successfully'))
+  .catch(err => console.error('MongoDB connection error:', err));
+
+// --- Passport & Session Middleware ---
+app.use(session({ secret: 'some_session_secret', resave: false, saveUninitialized: false }));
+app.use(passport.initialize());
+app.use(passport.session());
+
+// Define Routes
+app.use('/api/auth', require('./routes/auth'));
+
 app.post('/api/growth-suggestions', async (req, res) => {
   const { industry, stage, idea } = req.body;
 
@@ -33,8 +42,6 @@ app.post('/api/growth-suggestions', async (req, res) => {
   }
 
   const API_KEY = process.env.GOOGLE_API_KEY;
-
-  // --- Using the exact endpoint from the documentation screenshot ---
   const AI_API_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`;
 
   if (!API_KEY) {
@@ -58,7 +65,6 @@ app.post('/api/growth-suggestions', async (req, res) => {
     }
   `;
 
-  // The request body matches the structure from the documentation
   const requestBody = {
     contents: [{ parts: [{ text: prompt }] }],
     generationConfig: {
@@ -68,14 +74,13 @@ app.post('/api/growth-suggestions', async (req, res) => {
 
   try {
     console.log("Sending request to the documented Gemini v1beta endpoint...");
-    
     const response = await axios.post(AI_API_ENDPOINT, requestBody, {
       headers: { 'Content-Type': 'application/json' }
     });
 
     const aiSuggestions = JSON.parse(response.data.candidates[0].content.parts[0].text);
     console.log("Received a unique, AI-generated response from Gemini.");
-    
+
     res.json(aiSuggestions);
 
   } catch (error) {
@@ -86,19 +91,4 @@ app.post('/api/growth-suggestions', async (req, res) => {
 
 app.listen(port, () => {
   console.log(`InvestIQ MERN Backend is running on port: ${port}`);
-// --- Mongoose Connection ---
-mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log('MongoDB connection established successfully'))
-  .catch(err => console.error('MongoDB connection error:', err));
-
-// --- Passport & Session Middleware ---
-app.use(session({ secret: 'some_session_secret', resave: false, saveUninitialized: false }));
-app.use(passport.initialize());
-app.use(passport.session());
-
-// Define Routes
-app.use('/api/auth', require('./routes/auth'));
-
-app.listen(port, () => {
-    console.log(`Server is running on port: ${port}`);
 });
