@@ -37,7 +37,7 @@ const LoginPage = () => {
                         <p>AI-Driven Insights for Startup Success</p>
                     </div>
                     <form onSubmit={handleSubmit}>
-                       {/* ... form fields are the same */}
+                       
                         <div className="form-group">
                             <label htmlFor="email">Email Address</label>
                             <input type="email" id="email" name="email" value={email} onChange={onChange} required />
@@ -45,7 +45,14 @@ const LoginPage = () => {
                         <div className="form-group">
                             <label htmlFor="password">Password</label>
                             <div className="password-wrapper">
-                                <input type={passwordVisible ? "text" : "password"} id="password" name="password" value={password} onChange={onChange} required />
+                                <input 
+                                    type={passwordVisible ? "text" : "password"} 
+                                    id="password" 
+                                    name="password" 
+                                    value={password} 
+                                    onChange={onChange} 
+                                    required 
+                                />
                                 <span className="password-toggle" onClick={togglePasswordVisibility}>{passwordVisible ? 'HIDE' : 'SHOW'}</span>
                             </div>
                         </div>
@@ -54,24 +61,37 @@ const LoginPage = () => {
                                 <input type="checkbox" id="remember" name="remember" />
                                 <label htmlFor="remember">Remember Me</label>
                             </div>
-                            {/* --- THIS IS THE UPDATED LINE --- */}
                             <Link to="/forgot-password" className="forgot-password">Forgot Password?</Link>
                         </div>
                         <button type="submit" className="btn btn-primary">Log In</button>
                         <div className="separator">or continue with</div>
                         <div className="social-login">
                            <a href="http://localhost:5000/api/auth/google" className="btn btn-social"><span>Google</span></a>
-                           <button type-="button" className="btn btn-social"><span>LinkedIn</span></button>
+                           <button type="button" className="btn btn-social"><span>LinkedIn</span></button>
                         </div>
                         <div className="footer-links">
                             Don't have an account? <Link to="/signup">Sign Up</Link>
                             <br />
-                            <a href="#">Privacy Policy</a> &bull; <a href="#">Terms of Service</a>
+                            {/* --- UPDATED LINKS FOR FUNCTIONALITY/PLACEHOLDER --- */}
+                            <a 
+                                href="/privacy-policy" 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                            >
+                                Privacy Policy
+                            </a> 
+                            &bull; 
+                            <a 
+                                href="/terms-of-service" 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                            >
+                                Terms of Service
+                            </a>
                         </div>
                     </form>
                 </div>
                 <div className="right-panel">
-                    {/* ... right panel content is the same */}
                     <div className="quote-container">
                         <blockquote>"The secret of getting ahead is getting started."</blockquote>
                         <footer>- Mark Twain</footer>
