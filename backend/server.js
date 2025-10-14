@@ -1,9 +1,23 @@
-// backend/server.js
+// PUT THIS AT THE VERY TOP, BEFORE ANYTHING ELSE
+require('dotenv').config();
 
 const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
 require('dotenv').config();
+const mongoose = require('mongoose');
+const passport = require('passport');
+const session = require('express-session');
+
+// We can now remove the separate config file as it's not needed
+// const config = require('./config/config'); 
+
+// --- For Debugging: Let's check if the keys are loaded ---
+console.log('SENDGRID_API_KEY loaded:', !!process.env.SENDGRID_API_KEY);
+console.log('EMAIL_USER loaded:', process.env.EMAIL_USER);
+// ---------------------------------------------------------
+
+require('./config/passport-setup'); // Passport config
 
 const app = express();
 const port = process.env.PORT || 5000;
@@ -72,4 +86,19 @@ app.post('/api/growth-suggestions', async (req, res) => {
 
 app.listen(port, () => {
   console.log(`InvestIQ MERN Backend is running on port: ${port}`);
+// --- Mongoose Connection ---
+mongoose.connect(process.env.MONGO_URI)
+  .then(() => console.log('MongoDB connection established successfully'))
+  .catch(err => console.error('MongoDB connection error:', err));
+
+// --- Passport & Session Middleware ---
+app.use(session({ secret: 'some_session_secret', resave: false, saveUninitialized: false }));
+app.use(passport.initialize());
+app.use(passport.session());
+
+// Define Routes
+app.use('/api/auth', require('./routes/auth'));
+
+app.listen(port, () => {
+    console.log(`Server is running on port: ${port}`);
 });
