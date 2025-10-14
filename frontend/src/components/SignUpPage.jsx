@@ -29,7 +29,7 @@ const SignUpPage = () => {
             const res = await axios.post(url, newUser);
             console.log('Backend response:', res.data);
 
-            alert('Registration successful! Redirecting to login...');
+            alert('Registration successful! Please check your email for a verification code and then log in.');
             navigate('/');
 
         } catch (err) {
@@ -45,46 +45,68 @@ const SignUpPage = () => {
     };
 
     return (
-        <div className="signup-container-wrapper">
-            <div className="signup-container">
-                <div className="left-panel-signup">
-                    <div className="header-signup">
+        // Use generic class names from LoginPage.css for consistent styling
+        <div className="login-container-wrapper">
+            <div className="login-container">
+                <div className="left-panel">
+                    <div className="header">
                         <h1>Create Your Account</h1>
-                        <p>Join InvestIQ to get started.</p>
+                        <p>Join InvestIQ to get started on your investment journey.</p>
                     </div>
 
                     <form onSubmit={handleSubmit}>
                         <div className="form-group">
                             <label htmlFor="name">Full Name</label>
+                            {/* Removed id for consistency, relying on name */}
                             <input type="text" name="name" value={name} onChange={onChange} required />
                         </div>
                         <div className="form-group">
                             <label htmlFor="email">Email Address</label>
+                            {/* Removed id for consistency, relying on name */}
                             <input type="email" name="email" value={email} onChange={onChange} required />
                         </div>
+                        {/* Password input structure is updated to match LoginPage */}
                         <div className="form-group">
                             <label htmlFor="password">Create Password</label>
-                            <input type="password" name="password" value={password} onChange={onChange} minLength="6" required />
+                            <div className="password-wrapper">
+                                <input type="password" id="password" name="password" value={password} onChange={onChange} minLength="6" required />
+                                {/* Removed password toggle functionality to keep it simple, but kept the wrapper for alignment */}
+                            </div>
                         </div>
                         <div className="form-group">
                             <label htmlFor="password2">Confirm Password</label>
-                            <input type="password" name="password2" value={password2} onChange={onChange} minLength="6" required />
+                            <div className="password-wrapper">
+                                <input type="password" id="password2" name="password2" value={password2} onChange={onChange} minLength="6" required />
+                            </div>
                         </div>
                         
-                        <div className="terms-agreement">
-                            <input type="checkbox" id="terms" name="terms" required />
-                            <label htmlFor="terms">I agree to the <a href="#">Terms of Service</a></label>
+                        <button type="submit" className="btn btn-primary">Sign Up</button>
+                        
+                        {/* Added Separator and Social Login from LoginPage design */}
+                        <div className="separator">or continue with</div>
+                        <div className="social-login">
+                           <a href="http://localhost:5000/api/auth/google" className="btn btn-social"><span>Google</span></a>
+                           <button type="button" className="btn btn-social"><span>LinkedIn</span></button>
                         </div>
 
-                        <button type="submit" className="btn btn-primary-signup">Sign Up</button>
-                        
-                        <div className="footer-links-signup">
+                        <div className="footer-links">
                             Already have an account? <Link to="/">Log In</Link>
+                            <br />
+                            <a href="#">Privacy Policy</a> &bull; <a href="#">Terms of Service</a>
                         </div>
                     </form>
                 </div>
 
-                <div className="right-panel-signup"></div>
+                {/* Added the right-panel for the aesthetic split design, mirroring the LoginPage content structure */}
+                <div className="right-panel">
+                    <div className="quote-container">
+                        <blockquote>"The secret of getting ahead is getting started."</blockquote>
+                        <footer>- Mark Twain</footer>
+                    </div>
+                    <div className="news-ticker">
+                        <p>🚀 FinTech startup 'Zenith' raises $50M Series B...</p>
+                    </div>
+                </div>
             </div>
         </div>
     );
