@@ -32,6 +32,8 @@ const AppLayout = () => {
                 <Route path="/dashboard" element={<DashboardPage />} />
                 <Route path="/scorecard" element={<ScorecardInput />} />
                 <Route path="/growth-suggestions" element={<GrowthSuggestions />} />
+                <Route path="/profile" element={<div>Profile Page</div>} />
+                <Route path="/settings" element={<div>Settings Page</div>} />
             </Routes>
         </div>
     );
