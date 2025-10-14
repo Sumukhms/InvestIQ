@@ -41,6 +41,9 @@ const AppLayout = () => {
                 {/* App Routes with Navbar */}
                 <Route path="/dashboard" element={<DashboardPage />} />
                 <Route path="/scorecard" element={<ScorecardInput />} />
+                <Route path="/financials" element={<FinancialsPage />} />
+                <Route path="/alerts" element={<AlertsFeedPage />} />
+                <Route path="/competitors" element={<CompetitorSetupPage />} />
                 <Route path="/growth-suggestions" element={<GrowthSuggestions />} />
                 <Route path="/profile" element={<div>Profile Page</div>} />
                 <Route path="/settings" element={<div>Settings Page</div>} />
