@@ -1,100 +1,93 @@
 // frontend/src/components/DashboardPage.jsx
+
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import { Link, useNavigate } from 'react-router-dom';
 
 const DashboardPage = () => {
-    const [loading, setLoading] = useState(true);
-    const [news, setNews] = useState([]);
-    
-    // Function to fetch news data from the backend
-    useEffect(() => {
-        const fetchNews = async () => {
-            try {
-                // This call hits the backend route configured for Finnhub
-                const res = await axios.get('http://localhost:5000/api/news'); 
-                setNews(res.data);
-            } catch (err) {
-                console.error("Failed to fetch news:", err);
-                // Handle error display if necessary
-            } finally {
-                setLoading(false);
-            }
-        };
+  const [scorecardHistory, setScorecardHistory] = useState([]);
+  const navigate = useNavigate();
 
-        fetchNews();
-    }, []);
+  useEffect(() => {
+    const savedScorecards = JSON.parse(localStorage.getItem('scorecardHistory')) || [];
+    setScorecardHistory(savedScorecards);
+  }, []);
 
-    // Helper function to format the time since publication
-    const timeAgo = (dateString) => {
-        const now = new Date();
-        const past = new Date(dateString);
-        const diffInSeconds = Math.floor((now - past) / 1000);
+  const handleViewReport = (historyItem) => {
+    // Check if the item is in the new format, if not, create the structure it expects
+    const reportData = historyItem.formData ? 
+      { ...historyItem, isViewingHistory: true } : 
+      { 
+        formData: { startup_name: historyItem.startupName || 'N/A' }, 
+        prediction: { success_probability: historyItem.score || 0 },
+        date: historyItem.date,
+        isViewingHistory: true 
+      };
 
-        if (diffInSeconds < 60) return `${diffInSeconds} seconds ago`;
-        const diffInMinutes = Math.floor(diffInSeconds / 60);
-        if (diffInMinutes < 60) return `${diffInMinutes} minutes ago`;
-        const diffInHours = Math.floor(diffInMinutes / 60);
-        if (diffInHours < 24) return `${diffInHours} hours ago`;
-        const diffInDays = Math.floor(diffInHours / 24);
-        return `${diffInDays} days ago`;
-    };
+    navigate('/results', { state: reportData });
+  };
 
-    return (
-        <div className="p-8 bg-gray-900 min-h-screen text-white">
-            <h1 className="text-4xl font-bold mb-8 text-blue-400">Investor Dashboard</h1> 
-            <h1 className="text-4xl font-bold mb-6 text-blue-400">Dashboard</h1>
-            
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                {/* Scorecard Component Placeholder (Left Column) */}
-                <div className="md:col-span-2 bg-gray-800 p-6 rounded-lg shadow-lg">
-                    <h2 className="text-2xl font-semibold mb-4 border-b border-gray-700 pb-2">Investment Scorecard Overview</h2>
-                    <p className="text-gray-400">
-                        Run a new scorecard to analyze a startup idea and get an InvestIQ score.
-                    </p>
-                    {/* Placeholder for the main functionality/charts */}
-                    <div className="mt-4 p-8 bg-gray-700 rounded text-center">
-                         <p>Main Charts and User Data will go here.</p>
-                    </div>
-                </div>
-
-                {/* Real-Time News Feed (Right Column) */}
-                <div className="bg-gray-800 p-6 rounded-lg shadow-lg">
-                    <h2 className="text-2xl font-semibold mb-4 border-b border-gray-700 pb-2 flex justify-between items-center">
-                        Real-Time FinTech News
-                        <span className="text-sm text-yellow-500">LIVE</span>
-                    </h2>
-                    
-                    {loading && <p className="text-gray-500">Loading news feed...</p>}
-                    
-                    {!loading && news.length === 0 && <p className="text-gray-500">No news articles found.</p>}
-
-                    {!loading && news.length > 0 && (
-                        <div className="space-y-4">
-                            {news.map((article, index) => (
-                                <div key={index} className="border-b border-gray-700 pb-4 last:border-b-0">
-                                    <a 
-                                        href={article.url || "#"} 
-                                        target="_blank" 
-                                        rel="noopener noreferrer"
-                                        className="text-lg font-medium text-blue-400 hover:text-blue-300 transition duration-150 block"
-                                    >
-                                        {article.title}
-                                    </a>
-                                    <p className="text-sm text-gray-400 mt-1">{article.description}</p>
-                                    <div className="text-xs text-gray-500 mt-2 flex justify-between">
-                                        <span>Source: {article.source?.name || 'N/A'}</span>
-                                        <span>{timeAgo(article.publishedAt)}</span>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </div>
-                {/* End Real-Time News Feed */}
-                
-            </div>
+  return (
+    <div className="p-8 text-white">
+      <h1 className="text-3xl font-bold mb-6 text-blue-400">Dashboard</h1>
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {/* Placeholder cards */}
+        <div className="bg-gray-800 p-6 rounded-lg"><h2 className="text-xl font-semibold">Key Metric 1</h2><p className="text-3xl mt-2">1,234</p></div>
+        <div className="bg-gray-800 p-6 rounded-lg"><h2 className="text-xl font-semibold">Key Metric 2</h2><p className="text-3xl mt-2">$56,789</p></div>
+        <div className="bg-gray-800 p-6 rounded-lg flex flex-col items-center justify-center">
+           <Link to="/scorecard" className="w-full text-center px-6 py-3 font-semibold text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors">
+              Analyze a New Startup
+            </Link>
         </div>
-    );
+      </div>
+
+      {/* Scorecard History Section */}
+      <div className="mt-10 bg-gray-800 p-6 rounded-lg">
+        <h2 className="text-2xl font-semibold mb-4">Recent Scorecards</h2>
+        <div className="overflow-x-auto">
+          {scorecardHistory.length > 0 ? (
+            <table className="w-full text-left">
+              <thead>
+                <tr className="border-b border-gray-700">
+                  <th className="p-3">Startup Name</th>
+                  <th className="p-3">Score</th>
+                  <th className="p-3">Date</th>
+                  <th className="p-3 text-center">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {scorecardHistory.map((item, index) => {
+                  // Handle both old and new data structures
+                  const startupName = item.formData ? item.formData.startup_name : item.startupName;
+                  const score = item.prediction ? item.prediction.success_probability : item.score;
+
+                  return (
+                    <tr key={index} className="border-b border-gray-700 hover:bg-gray-700/50">
+                      <td className="p-3 font-medium">{startupName || 'N/A'}</td>
+                      <td className={`p-3 font-bold ${score > 70 ? 'text-green-400' : score > 40 ? 'text-yellow-400' : 'text-red-400'}`}>
+                        {score || 0}/100
+                      </td>
+                      <td className="p-3 text-gray-400">{new Date(item.date).toLocaleDateString()}</td>
+                      <td className="p-3 text-center">
+                        <button 
+                          onClick={() => handleViewReport(item)}
+                          className="px-4 py-2 font-semibold text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                        >
+                          View Report
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          ) : (
+            <p className="text-center text-gray-400 py-4">No scorecard history found. Analyze a startup to see its results here.</p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
 };
 
 export default DashboardPage;
