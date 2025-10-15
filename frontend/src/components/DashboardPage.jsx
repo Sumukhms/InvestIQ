@@ -13,7 +13,6 @@ const DashboardPage = () => {
   }, []);
 
   const handleViewReport = (historyItem) => {
-    // Check if the item is in the new format, if not, create the structure it expects
     const reportData = historyItem.formData ? 
       { ...historyItem, isViewingHistory: true } : 
       { 
@@ -22,18 +21,42 @@ const DashboardPage = () => {
         date: historyItem.date,
         isViewingHistory: true 
       };
-
     navigate('/results', { state: reportData });
   };
+
+  // --- NEW: Calculate Metrics ---
+  const totalStartupsAnalyzed = scorecardHistory.length;
+  
+  const averageSuccessScore = () => {
+    if (totalStartupsAnalyzed === 0) {
+      return 0; // Avoid division by zero
+    }
+    const totalScore = scorecardHistory.reduce((acc, item) => {
+      const score = item.prediction ? item.prediction.success_probability : item.score;
+      return acc + (score || 0);
+    }, 0);
+    return Math.round(totalScore / totalStartupsAnalyzed);
+  };
+  // --- END: NEW ---
 
   return (
     <div className="p-8 text-white">
       <h1 className="text-3xl font-bold mb-6 text-blue-400">Dashboard</h1>
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {/* Placeholder cards */}
-        <div className="bg-gray-800 p-6 rounded-lg"><h2 className="text-xl font-semibold">Key Metric 1</h2><p className="text-3xl mt-2">1,234</p></div>
-        <div className="bg-gray-800 p-6 rounded-lg"><h2 className="text-xl font-semibold">Key Metric 2</h2><p className="text-3xl mt-2">$56,789</p></div>
+        {/* Metric 1: Total Startups Analyzed */}
+        <div className="bg-gray-800 p-6 rounded-lg">
+          <h2 className="text-xl font-semibold">Total Startups Analyzed</h2>
+          <p className="text-4xl font-bold mt-2">{totalStartupsAnalyzed}</p>
+        </div>
+        
+        {/* Metric 2: Average Success Score */}
+        <div className="bg-gray-800 p-6 rounded-lg">
+          <h2 className="text-xl font-semibold">Average Success Score</h2>
+          <p className="text-4xl font-bold mt-2">{averageSuccessScore()}<span className="text-2xl text-gray-400">/100</span></p>
+        </div>
+
+        {/* Analyze New Startup Button */}
         <div className="bg-gray-800 p-6 rounded-lg flex flex-col items-center justify-center">
            <Link to="/scorecard" className="w-full text-center px-6 py-3 font-semibold text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors">
               Analyze a New Startup
@@ -57,7 +80,6 @@ const DashboardPage = () => {
               </thead>
               <tbody>
                 {scorecardHistory.map((item, index) => {
-                  // Handle both old and new data structures
                   const startupName = item.formData ? item.formData.startup_name : item.startupName;
                   const score = item.prediction ? item.prediction.success_probability : item.score;
 
