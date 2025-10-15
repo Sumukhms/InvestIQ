@@ -1,58 +1,63 @@
-import React, { useEffect } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import React, { useState } from 'react';
+import ScorecardInput from './ScorecardInput';
+import GrowthSuggestions from './GrowthSuggestions';
+import ScorecardOutputPage from './ScorecardOutputPage'; // Corrected import path
 
-const DashboardPage = () => {
-    const navigate = useNavigate();
-    const location = useLocation();
+function DashboardPage() {
+  const [activeTab, setActiveTab] = useState('scorecard');
+  const [predictionData, setPredictionData] = useState(null);
+  const [formData, setFormData] = useState(null);
 
-    useEffect(() => {
-        // This effect runs when the component loads
-        const params = new URLSearchParams(location.search);
-        const token = params.get('token');
+  // This function is called by ScorecardInput upon a successful prediction
+  const handlePredictionSuccess = (prediction, originalData) => {
+    setPredictionData(prediction);
+    setFormData(originalData);
+  };
 
-        if (token) {
-            // If a token is found in the URL, save it to local storage
-            localStorage.setItem('token', token);
-            // Clean the URL by removing the token query parameter
-            navigate('/dashboard', { replace: true });
-        }
-    }, [location, navigate]);
+  // This function allows the user to go back to the input form from the results
+  const handleGoBack = () => {
+    setPredictionData(null);
+    setFormData(null);
+  };
 
-    const handleLogout = () => {
-        // Clear the token from local storage
-        localStorage.removeItem('token');
-        alert('You have been logged out.');
-        // Redirect to the login page
-        navigate('/');
-    };
+  const tabStyles = "px-6 py-2 rounded-t-lg text-lg font-medium transition-colors focus:outline-none";
+  const activeStyles = "bg-gray-800 text-blue-400";
+  const inactiveStyles = "bg-gray-700 text-gray-400 hover:bg-gray-600";
 
-    return (
-        <div style={{
-            padding: '50px',
-            color: '#fff',
-            textAlign: 'center',
-            backgroundColor: '#1A1D2E',
-            minHeight: '100vh'
-        }}>
-            <h1>Welcome to Your InvestIQ Dashboard</h1>
-            <p>This is a protected page. You have successfully logged in.</p>
-            <button
-                onClick={handleLogout}
-                style={{
-                    marginTop: '20px',
-                    padding: '10px 20px',
-                    fontSize: '1rem',
-                    cursor: 'pointer',
-                    backgroundColor: '#4A90E2',
-                    color: '#fff',
-                    border: 'none',
-                    borderRadius: '5px'
-                }}
-            >
-                Log Out
-            </button>
-        </div>
-    );
-};
+  return (
+    <>
+      <header className="pt-8 px-8 max-w-7xl mx-auto">
+        <nav className="flex border-b border-gray-700">
+          <button
+            onClick={() => setActiveTab('scorecard')}
+            className={`${tabStyles} ${activeTab === 'scorecard' ? activeStyles : inactiveStyles}`}
+          >
+            Instant Scorecard
+          </button>
+          <button
+            onClick={() => setActiveTab('suggestions')}
+            className={`${tabStyles} ${activeTab === 'suggestions' ? activeStyles : inactiveStyles}`}
+          >
+            Growth Suggestions
+          </button>
+        </nav>
+      </header>
+      <main>
+        {activeTab === 'scorecard' && (
+          predictionData && formData ? (
+            <ScorecardOutputPage
+              prediction={predictionData}
+              formData={formData}
+              onBack={handleGoBack}
+            />
+          ) : (
+            <ScorecardInput onPredictionSuccess={handlePredictionSuccess} />
+          )
+        )}
+        {activeTab === 'suggestions' && <GrowthSuggestions />}
+      </main>
+    </>
+  );
+}
 
 export default DashboardPage;

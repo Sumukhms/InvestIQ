@@ -1,0 +1,153 @@
+.scorecard-output-page {
+  width: 100%;
+  max-width: 1200px;
+  margin: 2rem auto;
+  padding: 2.5rem;
+}
+
+.scorecard-title {
+  text-align: center;
+  font-size: 2.5rem;
+  margin-bottom: 2.5rem;
+  color: #60a5fa;
+  font-weight: bold;
+  letter-spacing: -0.5px;
+}
+
+.btn-back {
+    position: absolute;
+    top: 10rem;
+    left: 2.5rem;
+    background: #374151;
+    color: #d1d5db;
+    border: none;
+    padding: 0.6rem 1.2rem;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 1rem;
+    font-weight: 500;
+    transition: background-color 0.2s;
+    z-index: 10;
+}
+.btn-back:hover {
+    background-color: #4b5563;
+}
+
+.main-grid {
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap: 1.5rem;
+}
+
+@media (max-width: 1024px) {
+    .main-grid {
+        grid-template-columns: 1fr;
+    }
+    .btn-back {
+        position: relative;
+        top: -1rem;
+        left: 0;
+        margin-bottom: 1.5rem;
+        width: fit-content;
+    }
+}
+
+.grid-item {
+    background-color: #1f2937;
+    border-radius: 12px;
+    padding: 1.5rem;
+    border: 1px solid #374151;
+    animation: fadeIn 0.5s ease-out forwards;
+    opacity: 0;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.overall-score-card { animation-delay: 0.1s; }
+.chart-card { animation-delay: 0.2s; }
+.analysis-card { 
+    grid-column: 1 / -1;
+    animation-delay: 0.3s;
+}
+
+.card-title {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin-bottom: 1.5rem;
+    text-align: left;
+    color: #d1d5db;
+}
+
+/* Overall Score Component Styles */
+.overall-score-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  position: relative;
+  min-height: 250px;
+}
+
+.score-circle { transform: rotate(-90deg); }
+.score-circle-bg, .score-circle-fg { fill: none; stroke-width: 14; }
+.score-circle-bg { stroke: #374151; }
+.score-circle-fg { transition: stroke-dashoffset 1s ease-out; stroke-linecap: round; }
+
+.score-text-content {
+  position: absolute;
+  text-align: center;
+}
+
+.score-probability { font-size: 4rem; font-weight: 800; line-height: 1; }
+.score-probability span { font-size: 2rem; font-weight: 500; }
+.score-label { font-size: 0.9rem; text-transform: uppercase; color: #9ca3af; letter-spacing: 0.5px; margin-top: 4px; }
+
+/* Detailed Analysis Styles */
+.detailed-analysis-container {
+    padding-top: 1rem;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+}
+
+@media (max-width: 768px) {
+    .detailed-analysis-container {
+        grid-template-columns: 1fr;
+    }
+}
+
+.analysis-section:last-child { margin-bottom: 0; }
+.analysis-section h3 {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 1.4rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+.strengths-title { color: #4ade80; }
+.improvements-title { color: #f87171; }
+.analysis-section ul { list-style-type: none; padding-left: 0; margin: 0; }
+.analysis-section li {
+  margin-bottom: 0.75rem;
+  padding-left: 2rem;
+  position: relative;
+  font-size: 1.1rem;
+  color: #d1d5db;
+  line-height: 1.6;
+}
+.analysis-section li::before {
+  position: absolute;
+  left: 0;
+  top: 9px;
+  content: '';
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+.strengths-title + ul li::before { background-color: #4ade80; }
+.improvements-title + ul li::before { background-color: #f87171; }
+

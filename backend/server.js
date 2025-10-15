@@ -4,27 +4,54 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
-require('dotenv').config();
 const mongoose = require('mongoose');
 const passport = require('passport');
 const session = require('express-session');
+const authRoutes = require('./routes/auth'); // Your existing auth routes
 
-// We can now remove the separate config file as it's not needed
-// const config = require('./config/config'); 
-
-// --- For Debugging: Let's check if the keys are loaded ---
-console.log('SENDGRID_API_KEY loaded:', !!process.env.SENDGRID_API_KEY);
-console.log('EMAIL_USER loaded:', process.env.EMAIL_USER);
-// ---------------------------------------------------------
-
-require('./config/passport-setup'); // Passport config
+// Initialize Passport config
+require('./config/passport-setup'); 
 
 const app = express();
 const port = process.env.PORT || 5000;
 
-app.use(cors());
-app.use(express.json());
+// --- 1. MIDDLEWARE SETUP (should come first) ---
+app.use(cors({
+  origin: 'http://localhost:5173', // Allow your frontend to make requests
+  credentials: true
+}));
+app.use(express.json()); // To parse JSON bodies
+app.use(express.urlencoded({ extended: true }));
 
+// Express session middleware
+app.use(
+  session({
+    secret: process.env.SESSION_SECRET || 'a_fallback_secret_key', // Use an environment variable for the secret
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      secure: false, // Set to true if you are using https in production
+      httpOnly: true,
+    }
+  })
+);
+
+// Passport middleware (must come after session)
+app.use(passport.initialize());
+app.use(passport.session());
+
+// --- 2. MONGODB CONNECTION ---
+mongoose.connect(process.env.MONGO_URI)
+  .then(() => console.log('MongoDB connection established successfully'))
+  .catch(err => console.error('MongoDB connection error:', err));
+
+
+// --- 3. API ROUTES ---
+
+// Route for authentication (login, signup, etc.)
+app.use('/api/auth', authRoutes);
+
+// Route for getting AI-powered growth suggestions
 app.post('/api/growth-suggestions', async (req, res) => {
   const { industry, stage, idea } = req.body;
 
@@ -33,14 +60,13 @@ app.post('/api/growth-suggestions', async (req, res) => {
   }
 
   const API_KEY = process.env.GOOGLE_API_KEY;
-
-  // --- Using the exact endpoint from the documentation screenshot ---
-  const AI_API_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`;
-
   if (!API_KEY) {
+    console.error('GOOGLE_API_KEY is not defined in the .env file.');
     return res.status(500).json({ error: 'Google AI API key is not configured on the server.' });
   }
 
+  const AI_API_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-1.5:generateContent?key=${API_KEY}`;
+  
   const prompt = `
     Act as an elite, world-class Venture Capital analyst and startup mentor. A founder needs your expert advice.
     Your task is to provide the top 3 most critical and actionable priorities for them based on their specific startup IDEA, industry, and current stage.
@@ -58,7 +84,6 @@ app.post('/api/growth-suggestions', async (req, res) => {
     }
   `;
 
-  // The request body matches the structure from the documentation
   const requestBody = {
     contents: [{ parts: [{ text: prompt }] }],
     generationConfig: {
@@ -67,15 +92,17 @@ app.post('/api/growth-suggestions', async (req, res) => {
   };
 
   try {
-    console.log("Sending request to the documented Gemini v1beta endpoint...");
+    console.log("Sending request to Gemini AI endpoint...");
     
     const response = await axios.post(AI_API_ENDPOINT, requestBody, {
       headers: { 'Content-Type': 'application/json' }
     });
 
-    const aiSuggestions = JSON.parse(response.data.candidates[0].content.parts[0].text);
-    console.log("Received a unique, AI-generated response from Gemini.");
+    // The AI response is nested. We need to access it correctly.
+    const aiResponseText = response.data.candidates[0].content.parts[0].text;
+    const aiSuggestions = JSON.parse(aiResponseText);
     
+    console.log("Received AI-generated response from Gemini.");
     res.json(aiSuggestions);
 
   } catch (error) {
@@ -84,21 +111,8 @@ app.post('/api/growth-suggestions', async (req, res) => {
   }
 });
 
+
+// --- 4. START THE SERVER (should be the very last thing) ---
 app.listen(port, () => {
   console.log(`InvestIQ MERN Backend is running on port: ${port}`);
-// --- Mongoose Connection ---
-mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log('MongoDB connection established successfully'))
-  .catch(err => console.error('MongoDB connection error:', err));
-
-// --- Passport & Session Middleware ---
-app.use(session({ secret: 'some_session_secret', resave: false, saveUninitialized: false }));
-app.use(passport.initialize());
-app.use(passport.session());
-
-// Define Routes
-app.use('/api/auth', require('./routes/auth'));
-
-app.listen(port, () => {
-    console.log(`Server is running on port: ${port}`);
 });
