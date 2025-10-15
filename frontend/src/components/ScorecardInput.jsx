@@ -6,6 +6,8 @@ import { useNavigate } from 'react-router-dom';
 const ScorecardInput = () => {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
+    startup_name: '', // New field
+    problem_statement: '', // New field
     funding_total_usd: '',
     funding_rounds: '',
     milestones: '',
@@ -55,7 +57,7 @@ const ScorecardInput = () => {
       const response = await fetch('http://127.0.0.1:5001/predict', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(processedFormData), // Send the processed data
+        body: JSON.stringify(processedFormData),
       });
 
       if (!response.ok) {
@@ -63,7 +65,7 @@ const ScorecardInput = () => {
         throw new Error(errData.error || 'Network response was not ok');
       }
       const result = await response.json();
-      navigate('/results', { state: { prediction: result } }); // Navigate on success
+      navigate('/results', { state: { prediction: result } });
     } catch (err) {
       setError(err.message || 'Failed to get prediction.');
       console.error("Prediction API error:", err);
@@ -74,6 +76,7 @@ const ScorecardInput = () => {
 
   const inputStyles = "w-full p-3 bg-gray-700 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500";
   const labelStyles = "block text-sm font-medium text-gray-300 mb-1";
+  const textareaStyles = `${inputStyles} min-h-[100px]`; // Styles for textarea
 
   return (
     <div className="flex justify-center items-center min-h-screen bg-gray-900">
@@ -82,6 +85,19 @@ const ScorecardInput = () => {
         <p className="mt-2 text-gray-400">Enter your startup's details for an AI-powered success prediction.</p>
         <form onSubmit={handleSubmit} className="mt-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+            {/* New Startup Name Field (Spanning full width) */}
+            <div className="md:col-span-2">
+              <label className={labelStyles}>Startup Name</label>
+              <input type="text" name="startup_name" value={formData.startup_name} onChange={handleChange} className={inputStyles} required />
+            </div>
+
+            {/* New Problem Statement Field (Spanning full width) */}
+            <div className="md:col-span-2">
+              <label className={labelStyles}>Problem Statement</label>
+              <textarea name="problem_statement" value={formData.problem_statement} onChange={handleChange} className={textareaStyles} required />
+            </div>
+            
+            {/* Existing fields */}
             <div><label className={labelStyles}>Total Funding (USD)</label><input type="number" name="funding_total_usd" value={formData.funding_total_usd} onChange={handleChange} className={inputStyles} required /></div>
             <div><label className={labelStyles}>Funding Rounds</label><input type="number" name="funding_rounds" value={formData.funding_rounds} onChange={handleChange} className={inputStyles} required /></div>
             <div><label className={labelStyles}>Milestones Achieved</label><input type="number" name="milestones" value={formData.milestones} onChange={handleChange} className={inputStyles} required /></div>
