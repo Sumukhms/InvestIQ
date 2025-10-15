@@ -1,15 +1,23 @@
 // frontend/src/components/ScorecardInput.jsx
 
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 const ScorecardInput = () => {
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
-    funding_total_usd: '', funding_rounds: '', milestones: '', relationships: '',
-    category_code: 'software', founded_at: '', first_funding_at: '', last_funding_at: '',
-    age_first_milestone_year: '', age_last_milestone_year: '',
+    funding_total_usd: '',
+    funding_rounds: '',
+    milestones: '',
+    relationships: '',
+    category_code: 'software',
+    founded_at: '',
+    first_funding_at: '',
+    last_funding_at: '',
+    age_first_milestone_year: '',
+    age_last_milestone_year: '',
   });
 
-  const [prediction, setPrediction] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -22,13 +30,32 @@ const ScorecardInput = () => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
-    setPrediction(null);
+
+    // Create a copy of the form data to modify
+    const processedFormData = { ...formData };
+
+    // List of fields that should be numbers
+    const numericFields = [
+      'funding_total_usd',
+      'funding_rounds',
+      'milestones',
+      'relationships',
+      'age_first_milestone_year',
+      'age_last_milestone_year',
+    ];
+
+    // Convert string values to numbers for the numeric fields
+    numericFields.forEach(field => {
+      if (processedFormData[field]) {
+        processedFormData[field] = parseFloat(processedFormData[field]);
+      }
+    });
 
     try {
       const response = await fetch('http://127.0.0.1:5001/predict', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(processedFormData), // Send the processed data
       });
 
       if (!response.ok) {
@@ -36,7 +63,7 @@ const ScorecardInput = () => {
         throw new Error(errData.error || 'Network response was not ok');
       }
       const result = await response.json();
-      setPrediction(result);
+      navigate('/results', { state: { prediction: result } }); // Navigate on success
     } catch (err) {
       setError(err.message || 'Failed to get prediction.');
       console.error("Prediction API error:", err);
@@ -49,8 +76,8 @@ const ScorecardInput = () => {
   const labelStyles = "block text-sm font-medium text-gray-300 mb-1";
 
   return (
-    <div className="flex gap-8 p-8 max-w-6xl mx-auto my-8 bg-gray-800 rounded-xl shadow-lg">
-      <div className="flex-grow pr-8 border-r border-gray-700">
+    <div className="flex justify-center items-center min-h-screen bg-gray-900">
+      <div className="w-full max-w-2xl p-8 bg-gray-800 rounded-xl shadow-lg">
         <h1 className="text-3xl font-bold text-blue-400">Instant Startup Scorecard</h1>
         <p className="mt-2 text-gray-400">Enter your startup's details for an AI-powered success prediction.</p>
         <form onSubmit={handleSubmit} className="mt-6">
@@ -69,25 +96,8 @@ const ScorecardInput = () => {
           <button type="submit" disabled={isLoading} className="w-full mt-6 py-3 text-lg font-semibold text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:bg-gray-500 disabled:cursor-not-allowed transition-colors">
             {isLoading ? 'Analyzing...' : 'Calculate My Score'}
           </button>
+          {error && <div className="mt-4 text-red-400 bg-red-900/50 p-3 rounded-md border border-red-600 text-center">{error}</div>}
         </form>
-      </div>
-      <div className="w-1/3 flex flex-col justify-center items-center">
-        {isLoading && <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-blue-500"></div>}
-        {error && <div className="text-red-400 bg-red-900/50 p-4 rounded-md border border-red-600">{error}</div>}
-        {prediction && (
-          <div className={`text-center p-6 rounded-lg w-full ${prediction.prediction_label === 'Success' ? 'bg-green-900/50 border border-green-700' : 'bg-red-900/50 border border-red-700'}`}>
-            <h2 className="text-xl font-semibold text-gray-200">Prediction Result</h2>
-            <div className="my-4">
-              <span className="text-sm text-gray-400">Success Probability</span>
-              <p className={`text-6xl font-bold ${prediction.prediction_label === 'Success' ? 'text-green-400' : 'text-red-400'}`}>
-                {prediction.success_probability}%
-              </p>
-            </div>
-            <p className="text-lg text-gray-300">
-              This startup is likely to be a <strong className="font-bold">{prediction.prediction_label}</strong>.
-            </p>
-          </div>
-        )}
       </div>
     </div>
   );
