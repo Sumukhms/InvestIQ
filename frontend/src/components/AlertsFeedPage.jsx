@@ -9,25 +9,20 @@ const AlertsFeedPage = () => {
 
   const [searchTerm, setSearchTerm] = useState('');
   const [activeFilter, setActiveFilter] = useState('All');
-  // We can keep the filters, but the data will come from the API now.
-  // Note: The category might not perfectly match, as it depends on the API's data.
   const filterTopics = ['All', 'Technology', 'Startups', 'Funding'];
 
   useEffect(() => {
-    // Fetch news from YOUR backend API when the component loads
     const fetchNews = async () => {
       try {
-        // This proxy is set up in vite.config.js to point to your backend (e.g., http://localhost:5000)
         const response = await fetch('/api/news');
         if (!response.ok) {
           throw new Error('Network response was not ok');
         }
         const data = await response.json();
-        // Add a category property for filtering (optional, based on title analysis)
         const processedData = data.map(article => ({
             ...article,
-            id: article.url, // Use URL as a unique ID
-            category: getCategoryFromTitle(article.title)
+            id: article.url,
+            category: getCategoryFromTitle(article.title || '') // Safely handle null titles
         }));
         setArticles(processedData);
         setError(null);
@@ -42,7 +37,6 @@ const AlertsFeedPage = () => {
     fetchNews();
   }, []);
 
-  // Helper function to assign a category based on keywords in the title
   const getCategoryFromTitle = (title) => {
       const lowerTitle = title.toLowerCase();
       if (lowerTitle.includes('funding') || lowerTitle.includes('series') || lowerTitle.includes('raise')) {
@@ -51,16 +45,23 @@ const AlertsFeedPage = () => {
       if (lowerTitle.includes('startup') || lowerTitle.includes('yc') || lowerTitle.includes('venture')) {
           return 'Startups';
       }
-      return 'Technology'; // Default category
+      return 'Technology';
   };
 
+  // --- THIS IS THE CORRECTED FILTERING LOGIC ---
   const filteredArticles = articles.filter(article => {
+    const lowerSearchTerm = searchTerm.toLowerCase();
+
+    // Safely check title and description before calling toLowerCase()
+    const titleMatch = article.title && article.title.toLowerCase().includes(lowerSearchTerm);
+    const descriptionMatch = article.description && article.description.toLowerCase().includes(lowerSearchTerm);
+    
     const matchesFilter = activeFilter === 'All' || article.category === activeFilter;
-    const matchesSearch = searchTerm === '' ||
-      (article.title && article.title.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (article.description && article.description.toLowerCase().includes(searchTerm.toLowerCase()));
+    const matchesSearch = searchTerm === '' || titleMatch || descriptionMatch;
+
     return matchesFilter && matchesSearch;
   });
+  // --- END OF CORRECTION ---
 
   if (isLoading) return <div className="p-10 text-center text-white">Loading Real-Time News...</div>;
   if (error) return <div className="p-10 text-center text-red-400">Error: {error}</div>;
@@ -69,7 +70,6 @@ const AlertsFeedPage = () => {
     <div className="p-8 text-white">
       <h1 className="text-3xl font-bold mb-6 text-blue-400">Alerts & News Feed</h1>
 
-      {/* Filter and Search UI remains the same */}
       <div className="bg-gray-800 p-4 rounded-lg mb-6 flex flex-col md:flex-row gap-4 items-center">
         <div className="relative flex-grow w-full md:w-auto">
           <input type="text" placeholder="Search news..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full p-3 pl-10 bg-gray-700 border border-gray-600 rounded-md text-white" />
@@ -81,7 +81,6 @@ const AlertsFeedPage = () => {
         </div>
       </div>
 
-      {/* Articles Grid now displays real data */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredArticles.length > 0 ? (
           filteredArticles.map(article => (
@@ -91,8 +90,8 @@ const AlertsFeedPage = () => {
                   <span className="text-xs font-semibold bg-blue-500/30 text-blue-300 px-2 py-1 rounded-full">{article.category}</span>
                   <span className="text-xs text-gray-400">{new Date(article.publishedAt).toLocaleDateString()}</span>
                 </div>
-                <h2 className="text-xl font-bold mb-2 text-gray-100">{article.title}</h2>
-                <p className="text-gray-300 text-sm">{article.description}</p>
+                <h2 className="text-xl font-bold mb-2 text-gray-100">{article.title || "No Title Available"}</h2>
+                <p className="text-gray-300 text-sm">{article.description || "No summary available."}</p>
               </div>
               <a href={article.url} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline mt-4 font-semibold">
                 Read More &rarr;
