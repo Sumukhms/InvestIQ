@@ -14,6 +14,8 @@ import FinancialsPage from './components/FinancialsPage';
 import AlertsFeedPage from './components/AlertsFeedPage';
 import CompetitorSetupPage from './components/CompetitorSetupPage';
 import Navbar from './components/Navbar'; 
+import AuthSuccessPage from './components/AuthSuccessPage';
+import VerifyEmailPage from './components/VerifyEmailPage';
 
 // This is a helper component to wrap the main layout and conditionally show the Navbar
 const AppLayout = () => {
@@ -33,6 +35,8 @@ const AppLayout = () => {
                 <Route path="/" element={<LoginPage />} />
                 <Route path="/signup" element={<SignUpPage />} />
                 <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+                <Route path="/auth/success" element={<AuthSuccessPage />} />
+                <Route path="/verify-email" element={<VerifyEmailPage />} />
 
                 {/* Policy Routes (no Navbar) */}
                 <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />

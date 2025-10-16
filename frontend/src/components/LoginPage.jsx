@@ -1,103 +1,73 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 import { Link, useNavigate } from 'react-router-dom';
-import './LoginPage.css';
+import './LoginPage.css'; // Make sure this CSS file exists
 
 const LoginPage = () => {
     const [formData, setFormData] = useState({ email: '', password: '' });
-    const [passwordVisible, setPasswordVisible] = useState(false);
-    const navigate = useNavigate();
+    const [message, setMessage] = useState('');
+    const [isError, setIsError] = useState(false);
     const { email, password } = formData;
+    const navigate = useNavigate();
 
     const onChange = e => setFormData({ ...formData, [e.target.name]: e.target.value });
-    const togglePasswordVisibility = () => setPasswordVisible(!passwordVisible);
 
-    const handleSubmit = async (event) => {
-        event.preventDefault();
-        // ... (rest of the code is the same)
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setMessage('');
+        setIsError(false);
         try {
-            const url = 'http://localhost:5000/api/auth/login';
-            const res = await axios.post(url, formData);
-            localStorage.setItem('token', res.data.token);
-            alert('Login successful! Redirecting...');
-            // This will point to the real dashboard later
-            navigate('/dashboard'); 
+            const res = await axios.post('/api/auth/login', { email, password });
+            localStorage.setItem('token', res.data.token); // Save token
+            navigate('/dashboard'); // Redirect to dashboard
         } catch (err) {
-            const errorMessage = err.response?.data?.msg || 'Login failed.';
-            alert(errorMessage);
+            setIsError(true);
+            setMessage(err.response?.data?.message || 'Login failed. Please check your credentials.');
         }
     };
-    
+
     return (
         <div className="login-container-wrapper">
             <div className="login-container">
                 <div className="left-panel">
                     <div className="header">
-                        <h1>InvestIQ</h1>
-                        <p>AI-Driven Insights for Startup Success</p>
+                        <h1>Welcome Back!</h1>
+                        <p>Log in to access your InvestIQ dashboard.</p>
                     </div>
+
+                    {message && (
+                        <div className={isError ? 'error-message' : 'success-message'}>
+                            {message}
+                        </div>
+                    )}
+
                     <form onSubmit={handleSubmit}>
-                       
                         <div className="form-group">
                             <label htmlFor="email">Email Address</label>
-                            <input type="email" id="email" name="email" value={email} onChange={onChange} required />
+                            <input type="email" name="email" value={email} onChange={onChange} required />
                         </div>
                         <div className="form-group">
                             <label htmlFor="password">Password</label>
-                            <div className="password-wrapper">
-                                <input 
-                                    type={passwordVisible ? "text" : "password"} 
-                                    id="password" 
-                                    name="password" 
-                                    value={password} 
-                                    onChange={onChange} 
-                                    required 
-                                />
-                                <span className="password-toggle" onClick={togglePasswordVisibility}>{passwordVisible ? 'HIDE' : 'SHOW'}</span>
-                            </div>
+                            <input type="password" name="password" value={password} onChange={onChange} required />
                         </div>
-                        <div className="form-options">
-                            <div className="remember-me">
-                                <input type="checkbox" id="remember" name="remember" />
-                                <label htmlFor="remember">Remember Me</label>
-                            </div>
-                            <Link to="/forgot-password" className="forgot-password">Forgot Password?</Link>
+                        <div className="footer-links" style={{ textAlign: 'right', marginBottom: '1rem' }}>
+                            <Link to="/forgot-password">Forgot Password?</Link>
                         </div>
                         <button type="submit" className="btn btn-primary">Log In</button>
-                        <div className="separator">or continue with</div>
-                        <div className="social-login">
-                           <a href="http://localhost:5000/api/auth/google" className="btn btn-social"><span>Google</span></a>
-                           <button type="button" className="btn btn-social"><span>LinkedIn</span></button>
-                        </div>
-                        <div className="footer-links">
-                            Don't have an account? <Link to="/signup">Sign Up</Link>
-                            <br />
-                            {/* --- UPDATED LINKS FOR FUNCTIONALITY/PLACEHOLDER --- */}
-                            <a 
-                                href="/privacy-policy" 
-                                target="_blank" 
-                                rel="noopener noreferrer"
-                            >
-                                Privacy Policy
-                            </a> 
-                            &bull; 
-                            <a 
-                                href="/terms-of-service" 
-                                target="_blank" 
-                                rel="noopener noreferrer"
-                            >
-                                Terms of Service
-                            </a>
-                        </div>
                     </form>
+                    <div className="separator">or continue with</div>
+                    <div className="social-login">
+                        <a href="http://localhost:5000/api/auth/google" className="btn btn-social"><span>Google</span></a>
+                        <button type="button" className="btn btn-social"><span>LinkedIn</span></button>
+                    </div>
+                    <div className="footer-links">
+                        Don't have an account? <Link to="/signup">Sign Up</Link>
+                    </div>
                 </div>
                 <div className="right-panel">
                     <div className="quote-container">
-                        <blockquote>"The secret of getting ahead is getting started."</blockquote>
-                        <footer>- Mark Twain</footer>
-                    </div>
-                    <div className="news-ticker">
-                        <p>🚀 FinTech startup 'Zenith' raises $50M Series B...</p>
+                        <blockquote>"The best investment you can make is in yourself."</blockquote>
+                        <footer>- Warren Buffett</footer>
                     </div>
                 </div>
             </div>

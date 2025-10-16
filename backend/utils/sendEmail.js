@@ -11,7 +11,7 @@ const sendEmail = async (options) => {
     }
     
     const msg = {
-        to: options.email,
+        to: options.to,
         from: {
             email: process.env.EMAIL_USER,
             name: 'InvestIQ'
