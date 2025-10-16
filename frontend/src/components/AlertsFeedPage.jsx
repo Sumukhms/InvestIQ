@@ -1,75 +1,114 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
+// frontend/src/components/AlertsFeedPage.jsx
 
-// Mock data for demonstration purposes
-const mockAlerts = [
-  {
-    id: 1,
-    competitor: 'Innovate Inc.',
-    headline: 'Innovate Inc. raises $50M in Series B funding to expand AI platform.',
-    summary: 'The funding round was led by Future Ventures and will be used to scale their engineering team and enter new European markets.',
-    source: 'TechCrunch',
-    date: '2025-10-14',
-    link: '#',
-  },
-  {
-    id: 2,
-    competitor: 'NextGen Solutions',
-    headline: 'NextGen Solutions launches a new predictive analytics tool for the logistics industry.',
-    summary: 'The new tool aims to reduce shipping costs by 15% by optimizing routes in real-time, posing a direct challenge to established players.',
-    source: 'VentureBeat',
-    date: '2025-10-13',
-    link: '#',
-  },
-    {
-    id: 3,
-    competitor: 'Innovate Inc.',
-    headline: 'TechCrunch Disrupt Battlefield: Innovate Inc. named runner-up for its groundbreaking work in NLP.',
-    summary: 'The company showcased a new natural language processing model that understands complex industry jargon with 98% accuracy.',
-    source: 'TechCrunch',
-    date: '2025-10-11',
-    link: '#',
-  },
-];
+import React, { useState, useEffect } from 'react';
+
+// --- NEW: Skeleton Loader Component ---
+const ArticleSkeleton = () => (
+  <div className="bg-gray-800 p-6 rounded-lg shadow-lg animate-pulse">
+    <div className="h-4 bg-gray-700 rounded w-1/4 mb-4"></div>
+    <div className="h-6 bg-gray-700 rounded w-3/4 mb-2"></div>
+    <div className="h-6 bg-gray-700 rounded w-1/2 mb-4"></div>
+    <div className="h-16 bg-gray-700 rounded"></div>
+  </div>
+);
 
 const AlertsFeedPage = () => {
+  const [articles, setArticles] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const [searchTerm, setSearchTerm] = useState('');
+  const [activeFilter, setActiveFilter] = useState('All');
+  const filterTopics = ['All', 'Technology', 'Startups', 'Funding'];
+
+  useEffect(() => {
+    const fetchNews = async () => {
+      try {
+        const response = await fetch('/api/news');
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
+        }
+        const data = await response.json();
+        const processedData = data.map(article => ({
+            ...article,
+            id: article.url,
+            category: getCategoryFromTitle(article.title || '')
+        }));
+        setArticles(processedData);
+        setError(null);
+      } catch (error) {
+        setError(error.message);
+        setArticles([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchNews();
+  }, []);
+
+  const getCategoryFromTitle = (title) => {
+      const lowerTitle = title.toLowerCase();
+      if (lowerTitle.includes('funding') || lowerTitle.includes('series') || lowerTitle.includes('raise')) return 'Funding';
+      if (lowerTitle.includes('startup') || lowerTitle.includes('yc') || lowerTitle.includes('venture')) return 'Startups';
+      return 'Technology';
+  };
+
+  const filteredArticles = articles.filter(article => {
+    const lowerSearchTerm = searchTerm.toLowerCase();
+    const titleMatch = article.title && article.title.toLowerCase().includes(lowerSearchTerm);
+    const descriptionMatch = article.description && article.description.toLowerCase().includes(lowerSearchTerm);
+    const matchesFilter = activeFilter === 'All' || article.category === activeFilter;
+    const matchesSearch = searchTerm === '' || titleMatch || descriptionMatch;
+    return matchesFilter && matchesSearch;
+  });
+
+  if (error) return <div className="p-10 text-center text-red-400">Error: {error}</div>;
+
   return (
-    <div className="p-8 max-w-7xl mx-auto text-white">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-4xl font-bold text-blue-400">Competitor Alerts</h1>
-        <Link 
-          to="/competitor-setup" 
-          className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg"
-        >
-          Manage Competitors
-        </Link>
+    <div className="p-8 text-white">
+      <h1 className="text-3xl font-bold mb-6 text-blue-400">Alerts & News Feed</h1>
+
+      <div className="bg-gray-800 p-4 rounded-lg mb-6 flex flex-col md:flex-row gap-4 items-center">
+        <div className="relative flex-grow w-full md:w-auto">
+          <input type="text" placeholder="Search news..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full p-3 pl-10 bg-gray-700 border border-gray-600 rounded-md text-white" />
+          <svg className="w-5 h-5 text-gray-400 absolute top-1/2 left-3 transform -translate-y-1/2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="font-semibold text-gray-400">Filter by:</span>
+          {filterTopics.map(topic => (<button key={topic} onClick={() => setActiveFilter(topic)} className={`px-4 py-2 rounded-md font-semibold transition-colors ${activeFilter === topic ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}>{topic}</button>))}
+        </div>
       </div>
 
-      {/* Filtering Controls */}
-      <div className="mb-8">
-        <span className="text-gray-400 mr-4">Filter by:</span>
-        <button className="bg-gray-700 hover:bg-gray-600 text-white py-1 px-3 rounded-full mr-2">All</button>
-        <button className="bg-gray-700 hover:bg-gray-600 text-white py-1 px-3 rounded-full mr-2">Innovate Inc.</button>
-        <button className="bg-gray-700 hover:bg-gray-600 text-white py-1 px-3 rounded-full">NextGen Solutions</button>
-      </div>
-
-      {/* Alerts Feed */}
-      <div className="space-y-6">
-        {mockAlerts.map(alert => (
-          <div key={alert.id} className="bg-gray-800 p-6 rounded-lg shadow-lg hover:bg-gray-700 transition-colors duration-200">
-            <h2 className="text-xl font-semibold text-blue-300">{alert.headline}</h2>
-            <p className="text-gray-400 mt-2">{alert.summary}</p>
-            <div className="flex items-center justify-between mt-4 text-sm text-gray-500">
-              <div>
-                <span className="font-bold">{alert.competitor}</span> via {alert.source}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {/* --- UPDATED: Show Skeleton Loader while loading --- */}
+        {isLoading ? (
+          <>
+            <ArticleSkeleton />
+            <ArticleSkeleton />
+            <ArticleSkeleton />
+          </>
+        ) : filteredArticles.length > 0 ? (
+          filteredArticles.map(article => (
+            <div key={article.id} className="bg-gray-800 p-6 rounded-lg shadow-lg flex flex-col">
+              <div className="flex-grow">
+                <div className="flex justify-between items-start mb-2">
+                  <span className="text-xs font-semibold bg-blue-500/30 text-blue-300 px-2 py-1 rounded-full">{article.category}</span>
+                  <span className="text-xs text-gray-400">{new Date(article.publishedAt).toLocaleDateString()}</span>
+                </div>
+                <h2 className="text-xl font-bold mb-2 text-gray-100">{article.title || "No Title Available"}</h2>
+                <p className="text-gray-300 text-sm">{article.description || "No summary available."}</p>
               </div>
-              <span>{alert.date}</span>
+              <a href={article.url} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline mt-4 font-semibold">
+                Read More &rarr;
+              </a>
             </div>
-            <a href={alert.link} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline mt-2 inline-block">
-              Read full article →
-            </a>
+          ))
+        ) : (
+          <div className="col-span-full text-center py-10">
+            <h2 className="text-xl text-gray-400">No articles found for your criteria.</h2>
           </div>
-        ))}
+        )}
       </div>
     </div>
   );
