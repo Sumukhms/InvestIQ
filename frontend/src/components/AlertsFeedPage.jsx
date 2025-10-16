@@ -2,6 +2,16 @@
 
 import React, { useState, useEffect } from 'react';
 
+// --- NEW: Skeleton Loader Component ---
+const ArticleSkeleton = () => (
+  <div className="bg-gray-800 p-6 rounded-lg shadow-lg animate-pulse">
+    <div className="h-4 bg-gray-700 rounded w-1/4 mb-4"></div>
+    <div className="h-6 bg-gray-700 rounded w-3/4 mb-2"></div>
+    <div className="h-6 bg-gray-700 rounded w-1/2 mb-4"></div>
+    <div className="h-16 bg-gray-700 rounded"></div>
+  </div>
+);
+
 const AlertsFeedPage = () => {
   const [articles, setArticles] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -22,7 +32,7 @@ const AlertsFeedPage = () => {
         const processedData = data.map(article => ({
             ...article,
             id: article.url,
-            category: getCategoryFromTitle(article.title || '') // Safely handle null titles
+            category: getCategoryFromTitle(article.title || '')
         }));
         setArticles(processedData);
         setError(null);
@@ -39,31 +49,20 @@ const AlertsFeedPage = () => {
 
   const getCategoryFromTitle = (title) => {
       const lowerTitle = title.toLowerCase();
-      if (lowerTitle.includes('funding') || lowerTitle.includes('series') || lowerTitle.includes('raise')) {
-          return 'Funding';
-      }
-      if (lowerTitle.includes('startup') || lowerTitle.includes('yc') || lowerTitle.includes('venture')) {
-          return 'Startups';
-      }
+      if (lowerTitle.includes('funding') || lowerTitle.includes('series') || lowerTitle.includes('raise')) return 'Funding';
+      if (lowerTitle.includes('startup') || lowerTitle.includes('yc') || lowerTitle.includes('venture')) return 'Startups';
       return 'Technology';
   };
 
-  // --- THIS IS THE CORRECTED FILTERING LOGIC ---
   const filteredArticles = articles.filter(article => {
     const lowerSearchTerm = searchTerm.toLowerCase();
-
-    // Safely check title and description before calling toLowerCase()
     const titleMatch = article.title && article.title.toLowerCase().includes(lowerSearchTerm);
     const descriptionMatch = article.description && article.description.toLowerCase().includes(lowerSearchTerm);
-    
     const matchesFilter = activeFilter === 'All' || article.category === activeFilter;
     const matchesSearch = searchTerm === '' || titleMatch || descriptionMatch;
-
     return matchesFilter && matchesSearch;
   });
-  // --- END OF CORRECTION ---
 
-  if (isLoading) return <div className="p-10 text-center text-white">Loading Real-Time News...</div>;
   if (error) return <div className="p-10 text-center text-red-400">Error: {error}</div>;
 
   return (
@@ -82,7 +81,14 @@ const AlertsFeedPage = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredArticles.length > 0 ? (
+        {/* --- UPDATED: Show Skeleton Loader while loading --- */}
+        {isLoading ? (
+          <>
+            <ArticleSkeleton />
+            <ArticleSkeleton />
+            <ArticleSkeleton />
+          </>
+        ) : filteredArticles.length > 0 ? (
           filteredArticles.map(article => (
             <div key={article.id} className="bg-gray-800 p-6 rounded-lg shadow-lg flex flex-col">
               <div className="flex-grow">
