@@ -1,0 +1,210 @@
+/* --- UNIFIED STYLES FOR AUTH PAGES --- */
+
+.auth-wrapper {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    /* Animated Gradient Background */
+    background: linear-gradient(-45deg, #101021, #1A1D2E, #2B2D42, #101021);
+    background-size: 400% 400%;
+    animation: gradientBG 15s ease infinite;
+    padding: 2rem;
+    font-family: 'Poppins', sans-serif;
+}
+
+@keyframes gradientBG {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+.auth-container {
+    display: flex;
+    width: 100%;
+    max-width: 1100px;
+    min-height: 650px;
+    /* Glassmorphism Effect */
+    background: rgba(26, 29, 46, 0.6);
+    backdrop-filter: blur(10px);
+    border-radius: 20px;
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    overflow: hidden;
+    color: #EDF2F4;
+    opacity: 0;
+    transform: translateY(20px);
+    animation: fadeInSlideUp 0.7s ease-out forwards;
+}
+
+@keyframes fadeInSlideUp {
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.auth-panel, .auth-image-panel {
+    flex: 0 0 50%;
+    box-sizing: border-box;
+}
+
+.auth-panel {
+    padding: 40px 50px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.auth-image-panel {
+    background: linear-gradient(rgba(26, 29, 46, 0.85), rgba(26, 29, 46, 0.85)), url('https://images.unsplash.com/photo-1521737604893-d14cc237f11d?q=80&w=2084') center/cover;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    padding: 50px;
+}
+
+.header h1 {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 2.2rem;
+    font-weight: 700;
+}
+
+.header p {
+    font-size: 0.9rem;
+    color: #8D99AE;
+    margin-bottom: 25px;
+}
+
+.form-group {
+    margin-bottom: 18px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 0.9rem;
+    color: #A0AEC0;
+}
+
+.form-group input {
+    width: 100%;
+    padding: 12px 15px;
+    background-color: rgba(0, 0, 0, 0.2);
+    border: 1px solid #4A4E69;
+    border-radius: 8px;
+    color: #EDF2F4;
+    font-size: 1rem;
+    transition: all 0.3s ease;
+}
+
+.form-group input:focus {
+    outline: none;
+    border-color: #4A90E2;
+    box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.3);
+}
+
+.btn {
+    width: 100%;
+    padding: 12px;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.btn-primary {
+    background-color: #4A90E2;
+    color: #fff;
+    margin-bottom: 20px;
+}
+
+.btn-primary:hover {
+    background-color: #357ABD;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(74, 144, 226, 0.2);
+}
+
+.separator {
+    text-align: center;
+    margin-bottom: 20px;
+    color: #8D99AE;
+    font-size: 0.8rem;
+}
+
+.social-login {
+    display: flex;
+    gap: 12px;
+}
+
+.btn-social {
+    flex-grow: 1;
+    background-color: #fff;
+    color: #2B2D42;
+    border: 1px solid #4A4E69;
+    text-decoration: none;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+}
+
+.btn-social:hover {
+    background-color: #f0f0f0;
+    transform: translateY(-2px);
+}
+
+.footer-links {
+    text-align: center;
+    margin-top: 25px;
+    font-size: 0.8rem;
+    color: #8D99AE;
+}
+
+.footer-links a {
+    color: #4A90E2;
+    text-decoration: none;
+}
+
+.footer-links a:hover {
+    text-decoration: underline;
+}
+
+.quote-container {
+    margin-bottom: 40px;
+}
+
+.quote-container blockquote {
+    font-size: 1.6rem;
+    line-height: 1.4;
+    margin-bottom: 15px;
+    border-left: 3px solid #4A90E2;
+    padding-left: 15px;
+}
+
+.news-ticker {
+    background-color: rgba(0, 0, 0, 0.3);
+    padding: 10px;
+    border-radius: 8px;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+.news-ticker p {
+    display: inline-block;
+    padding-left: 100%;
+    animation: ticker-scroll 25s linear infinite;
+}
+
+@keyframes ticker-scroll {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-100%); }
+}
+
+@media (max-width: 900px) {
+    .auth-image-panel { display: none; }
+    .auth-panel { flex: 1; }
+    .auth-container { max-width: 450px; }
+}

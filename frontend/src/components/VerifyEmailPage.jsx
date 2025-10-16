@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate, Link } from 'react-router-dom';
-import './LoginPage.css'; // Reuse styles for consistency
+import './Auth.css'; // <-- Import the unified CSS file
 
-const RESEND_TIMEOUT = 60; // 60 seconds
+const RESEND_TIMEOUT = 60;
 
 const VerifyEmailPage = () => {
     const [email, setEmail] = useState('');
@@ -24,17 +24,15 @@ const VerifyEmailPage = () => {
     const handleResend = async () => {
         if (!email) {
             setIsError(true);
-            setMessage('Please enter your email to resend the code.');
-            return;
+            return setMessage('Please enter your email to resend the code.');
         }
         setMessage('');
         setIsError(false);
         try {
-            // This calls the /resend-verification route you created
             const res = await axios.post('/api/auth/resend-verification', { email });
             setIsError(false);
             setMessage(res.data.message);
-            setCountdown(RESEND_TIMEOUT); // Start the resend timer
+            setCountdown(RESEND_TIMEOUT);
         } catch (err) {
             setIsError(true);
             setMessage(err.response?.data?.message || 'Failed to resend code.');
@@ -46,36 +44,25 @@ const VerifyEmailPage = () => {
         setMessage('');
         setIsError(false);
         try {
-            // --- THIS IS THE CRITICAL FIX ---
-            // It now correctly calls the '/api/auth/verify-email' endpoint
             const res = await axios.post('/api/auth/verify-email', { email, verificationCode });
-            // --------------------------
-            
             setIsError(false);
-            setMessage(res.data.message); // Show success message
-            setTimeout(() => navigate('/'), 2000); // Redirect to login on success
+            setMessage(res.data.message);
+            setTimeout(() => navigate('/'), 2000);
         } catch (err) {
             setIsError(true);
-            setMessage(err.response?.data?.message || 'Verification failed. Please check the code and try again.');
+            setMessage(err.response?.data?.message || 'Verification failed.');
         }
     };
 
     return (
-        <div className="login-container-wrapper">
-             <div className="login-container">
-                <div className="left-panel">
+        <div className="auth-wrapper">
+            <div className="auth-container" style={{ maxWidth: '500px', minHeight: 'auto' }}>
+                <div className="auth-panel">
                     <div className="header">
-                        <h1>Verify Your Email</h1>
-                        <p>Enter the code sent to your email address.</p>
+                        <h1>Verify Your Account</h1>
+                        <p>Enter your email and the verification code sent to your inbox.</p>
                     </div>
-
-                    {/* Display success or error messages */}
-                    {message && (
-                        <div className={isError ? 'error-message' : 'success-message'}>
-                            {message}
-                        </div>
-                    )}
-
+                    {message && <div className={isError ? 'error-message' : 'success-message'}>{message}</div>}
                     <form onSubmit={handleSubmit}>
                         <div className="form-group">
                             <label>Email</label>
@@ -91,6 +78,8 @@ const VerifyEmailPage = () => {
                         <button onClick={handleResend} disabled={countdown > 0} className="btn-link">
                             {countdown > 0 ? `Resend in ${countdown}s` : 'Resend Code'}
                         </button>
+                    </div>
+                     <div className="footer-links" style={{marginTop: '1rem'}}>
                         <Link to="/">Back to Login</Link>
                     </div>
                 </div>

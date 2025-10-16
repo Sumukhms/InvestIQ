@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 import { Link } from 'react-router-dom';
-import './LoginPage.css'; // Reuse styles for consistency
+import './Auth.css'; // <-- Import the unified CSS file
 
 const ForgotPasswordPage = () => {
     const [email, setEmail] = useState('');
@@ -13,34 +13,27 @@ const ForgotPasswordPage = () => {
         setMessage('');
         setIsError(false);
         try {
-            // This calls the /forgot-password route on your backend
             const res = await axios.post('/api/auth/forgot-password', { email });
             setIsError(false);
             setMessage(res.data.message);
         } catch (err) {
             setIsError(true);
-            setMessage(err.response?.data?.message || 'An error occurred. Please try again.');
+            setMessage(err.response?.data?.message || 'An error occurred.');
         }
     };
 
     return (
-        <div className="login-container-wrapper">
-            <div className="login-container">
-                <div className="left-panel">
+        <div className="auth-wrapper">
+            <div className="auth-container" style={{ maxWidth: '500px', minHeight: 'auto' }}>
+                <div className="auth-panel">
                     <div className="header">
-                        <h1>Reset Your Password</h1>
-                        <p>Enter your email address, and we'll send you a link to get back into your account.</p>
+                        <h1>Reset Password</h1>
+                        <p>Enter your email address to receive a password reset link.</p>
                     </div>
-
-                    {message && (
-                        <div className={isError ? 'error-message' : 'success-message'}>
-                            {message}
-                        </div>
-                    )}
-
+                    {message && <div className={isError ? 'error-message' : 'success-message'}>{message}</div>}
                     <form onSubmit={handleSubmit}>
                         <div className="form-group">
-                            <label>Email Address</label>
+                            <label>Email</label>
                             <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
                         </div>
                         <button type="submit" className="btn btn-primary">Send Reset Link</button>
