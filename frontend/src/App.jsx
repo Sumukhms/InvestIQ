@@ -1,35 +1,63 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import React from 'react';
+import { BrowserRouter as Router, Route, Routes, useLocation } from 'react-router-dom';
 
-function App() {
-  const [count, setCount] = useState(0)
+// Import Pages and Components
+import LoginPage from './components/LoginPage';
+import SignUpPage from './components/SignUpPage';
+import ForgotPasswordPage from './components/ForgotPasswordPage';
+import DashboardPage from './components/DashboardPage';
+import ScorecardInput from './components/ScorecardInput';
+import GrowthSuggestions from './components/GrowthSuggestions';
+import PrivacyPolicyPage from './components/PrivacyPolicyPage'; // <-- NEW
+import TermsOfServicePage from './components/TermsOfServicePage';   // <-- NEW
+import FinancialsPage from './components/FinancialsPage';
+import AlertsFeedPage from './components/AlertsFeedPage';
+import CompetitorSetupPage from './components/CompetitorSetupPage';
+import Navbar from './components/Navbar'; 
 
-  return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.jsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+// This is a helper component to wrap the main layout and conditionally show the Navbar
+const AppLayout = () => {
+    const location = useLocation();
+    // Routes where the Navbar should NOT be displayed
+    // Added policy pages to noNavbarRoutes
+    const noNavbarRoutes = ['/', '/signup', '/forgot-password', '/privacy-policy', '/terms-of-service'];
+
+    // Check if the current path is one of the no-navbar routes
+    const showNavbar = !noNavbarRoutes.includes(location.pathname);
+
+    return (
+        <div className="bg-gray-900 min-h-screen">
+            {showNavbar && <Navbar />}
+            <Routes>
+                {/* Auth Routes (no Navbar) */}
+                <Route path="/" element={<LoginPage />} />
+                <Route path="/signup" element={<SignUpPage />} />
+                <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+
+                {/* Policy Routes (no Navbar) */}
+                <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
+                <Route path="/terms-of-service" element={<TermsOfServicePage />} />
+                
+                {/* App Routes with Navbar */}
+                <Route path="/dashboard" element={<DashboardPage />} />
+                <Route path="/scorecard" element={<ScorecardInput />} />
+                <Route path="/financials" element={<FinancialsPage />} />
+                <Route path="/alerts" element={<AlertsFeedPage />} />
+                <Route path="/competitors" element={<CompetitorSetupPage />} />
+                <Route path="/growth-suggestions" element={<GrowthSuggestions />} />
+                <Route path="/profile" element={<div>Profile Page</div>} />
+                <Route path="/settings" element={<div>Settings Page</div>} />
+            </Routes>
+        </div>
+    );
 }
 
-export default App
+function App() {
+  return (
+    <Router>
+      <AppLayout />
+    </Router>
+  );
+}
+
+export default App;
