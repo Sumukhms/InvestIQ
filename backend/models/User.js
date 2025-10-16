@@ -13,13 +13,26 @@ const UserSchema = new Schema({
     },
     password: {
         type: String,
-        // Password is not required because of Google OAuth users
+        // Password is not required for Google OAuth users
     },
     date: {
         type: Date,
         default: Date.now
     },
-    // --- NEW FIELDS FOR PASSWORD RESET ---
+    
+    // --- FIELDS FOR EMAIL VERIFICATION (MISSING) ---
+    isVerified: {
+        type: Boolean,
+        default: false
+    },
+    verificationCode: {
+        type: String,
+    },
+    verificationExpires: {
+        type: Date,
+    },
+
+    // --- FIELDS FOR PASSWORD RESET ---
     resetPasswordToken: {
         type: String,
     },
