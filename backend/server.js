@@ -49,7 +49,7 @@ app.post('/api/growth-suggestions', async (req, res) => {
   }
 
   const API_KEY = process.env.GOOGLE_API_KEY;
-  const AI_API_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
+  const AI_API_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`;
 
   if (!API_KEY) {
     return res.status(500).json({ error: 'Google AI API key is not configured on the server.' });
