@@ -32,10 +32,15 @@ app.use(session({ secret: 'some_session_secret', resave: false, saveUninitialize
 app.use(passport.initialize());
 app.use(passport.session());
 
-// Define Routes
-const newsRoutes = require('./routes/news'); // <-- NEW: Import the news route
+// --- Define Routes ---
+const newsRoutes = require('./routes/news');
+const fundingRoutes = require('./routes/funding');
+const competitorRoutes = require('./routes/competitors'); // <-- Import the new competitor route
+
 app.use('/api/auth', require('./routes/auth'));
-app.use('/api/news', newsRoutes); // <-- NEW: Register the news route
+app.use('/api/news', newsRoutes);
+app.use('/api/funding', fundingRoutes);
+app.use('/api/competitors', competitorRoutes); // <-- Use the new competitor route
 
 app.post('/api/growth-suggestions', async (req, res) => {
   const { industry, stage, idea } = req.body;
@@ -45,7 +50,7 @@ app.post('/api/growth-suggestions', async (req, res) => {
   }
 
   const API_KEY = process.env.GOOGLE_API_KEY;
-  const AI_API_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`;
+  const AI_API_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
 
   if (!API_KEY) {
     return res.status(500).json({ error: 'Google AI API key is not configured on the server.' });

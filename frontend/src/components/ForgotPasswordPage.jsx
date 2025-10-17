@@ -1,46 +1,46 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 import { Link } from 'react-router-dom';
-import './ForgotPasswordPage.css';
+import './Auth.css'; // <-- Import the unified CSS file
 
 const ForgotPasswordPage = () => {
     const [email, setEmail] = useState('');
     const [message, setMessage] = useState('');
+    const [isError, setIsError] = useState(false);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setMessage('');
+        setIsError(false);
         try {
-            const url = `http://localhost:5000/api/auth/forgot-password`;
-            const res = await axios.post(url, { email });
-            setMessage(res.data.msg);
+            const res = await axios.post('/api/auth/forgot-password', { email });
+            setIsError(false);
+            setMessage(res.data.message);
         } catch (err) {
-            const errorMsg = err.response?.data?.msg || 'An error occurred. Please try again.';
-            setMessage(errorMsg);
+            setIsError(true);
+            setMessage(err.response?.data?.message || 'An error occurred.');
         }
     };
 
     return (
-        <div className="forgot-password-wrapper">
-            <div className="forgot-password-container">
-                <h2>Forgot Your Password?</h2>
-                <p>No problem. Enter your email address below and we'll send you a link to reset it.</p>
-                <form onSubmit={handleSubmit}>
-                    <div className="form-group">
-                        <label htmlFor="email">Email Address</label>
-                        <input
-                            type="email"
-                            id="email"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            required
-                        />
+        <div className="auth-wrapper">
+            <div className="auth-container" style={{ maxWidth: '500px', minHeight: 'auto' }}>
+                <div className="auth-panel">
+                    <div className="header">
+                        <h1>Reset Password</h1>
+                        <p>Enter your email address to receive a password reset link.</p>
                     </div>
-                    <button type="submit" className="btn-submit">Send Reset Link</button>
-                </form>
-                {message && <p className="response-message">{message}</p>}
-                <div className="back-to-login">
-                    <Link to="/">Back to Log In</Link>
+                    {message && <div className={isError ? 'error-message' : 'success-message'}>{message}</div>}
+                    <form onSubmit={handleSubmit}>
+                        <div className="form-group">
+                            <label>Email</label>
+                            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+                        </div>
+                        <button type="submit" className="btn btn-primary">Send Reset Link</button>
+                    </form>
+                    <div className="footer-links">
+                        <Link to="/">Back to Login</Link>
+                    </div>
                 </div>
             </div>
         </div>
