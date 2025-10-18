@@ -7,6 +7,7 @@ const axios = require('axios');
 const mongoose = require('mongoose');
 const passport = require('passport');
 const session = require('express-session');
+const Scorecard = require('./models/Scorecard'); // <-- IMPORT THE SCORECARD MODEL
 
 // --- For Debugging: Let's check if the keys are loaded ---
 console.log('SENDGRID_API_KEY loaded:', !!process.env.SENDGRID_API_KEY);
@@ -43,20 +44,21 @@ app.use('/api/funding', fundingRoutes);
 app.use('/api/competitors', competitorRoutes); // <-- Use the new competitor route
 
 app.post('/api/growth-suggestions', async (req, res) => {
-  const { industry, stage, idea } = req.body;
+    const { industry, stage, idea } = req.body;
 
-  if (!industry || !stage || !idea) {
-    return res.status(400).json({ error: 'Industry, stage, and the startup idea are required.' });
-  }
+    if (!industry || !stage || !idea) {
+        return res.status(400).json({ error: 'Industry, stage, and the startup idea are required.' });
+    }
 
-  const API_KEY = process.env.GOOGLE_API_KEY;
-  const AI_API_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`;
+    const API_KEY = process.env.GOOGLE_API_KEY;
+    // --- FIX 1: Updated the model name in the endpoint ---
+    const AI_API_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`;
 
-  if (!API_KEY) {
-    return res.status(500).json({ error: 'Google AI API key is not configured on the server.' });
-  }
+    if (!API_KEY) {
+        return res.status(500).json({ error: 'Google AI API key is not configured on the server.' });
+    }
 
-  const prompt = `
+    const prompt = `
     Act as an elite, world-class Venture Capital analyst and startup mentor. A founder needs your expert advice.
     Your task is to provide the top 3 most critical and actionable priorities for them based on their specific startup IDEA, industry, and current stage.
     Your advice must be highly specific, unique, and directly tailored to the founder's idea. Do not give generic, pre-written advice.
@@ -73,28 +75,34 @@ app.post('/api/growth-suggestions', async (req, res) => {
     }
   `;
 
-  const requestBody = {
-    contents: [{ parts: [{ text: prompt }] }],
-    generationConfig: {
-      response_mime_type: "application/json",
+    // gemini-2.5-flash DOES support response_mime_type, so we can add it back
+    const requestBody = {
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: {
+            response_mime_type: "application/json",
+        }
+    };
+
+    try {
+        console.log("Sending request to the documented Gemini v1beta endpoint...");
+        const response = await axios.post(AI_API_ENDPOINT, requestBody, {
+            headers: { 'Content-Type': 'application/json' }
+        });
+
+        // --- FIX 2: Clean the response string before parsing ---
+        // The model might still return ```json\n{...}\n```, so we clean it.
+        const rawResponse = response.data.candidates[0].content.parts[0].text;
+        const cleanedResponse = rawResponse.replace(/```json\n|```/g, '').trim();
+
+        const aiSuggestions = JSON.parse(cleanedResponse);
+        console.log("Received a unique, AI-generated response from Gemini.");
+
+        res.json(aiSuggestions);
+
+    } catch (error) {
+        console.error("Error calling Google AI API:", error.response ? error.response.data : error.message);
+        res.status(500).json({ error: 'Failed to get a response from the AI service.' });
     }
-  };
-
-  try {
-    console.log("Sending request to the documented Gemini v1beta endpoint...");
-    const response = await axios.post(AI_API_ENDPOINT, requestBody, {
-      headers: { 'Content-Type': 'application/json' }
-    });
-
-    const aiSuggestions = JSON.parse(response.data.candidates[0].content.parts[0].text);
-    console.log("Received a unique, AI-generated response from Gemini.");
-
-    res.json(aiSuggestions);
-
-  } catch (error) {
-    console.error("Error calling Google AI API:", error.response ? error.response.data : error.message);
-    res.status(500).json({ error: 'Failed to get a response from the AI service.' });
-  }
 });
 
 // Test route to create a new scorecard

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { Link, NavLink, useNavigate, useLocation } from 'react-router-dom';
 
 const Navbar = () => {
   const [isDropdownOpen, setDropdownOpen] = useState(false);
@@ -125,7 +125,7 @@ const Navbar = () => {
             <ul className="hidden lg:flex items-center gap-1">
               {navLinks.map(link => (
                 <li key={link.path}>
-                  <Link
+                  <NavLink
                     to={link.path}
                     className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
                       isActive(link.path)
@@ -135,7 +135,7 @@ const Navbar = () => {
                   >
                     <span>{link.icon}</span>
                     <span className="hidden xl:inline">{link.label}</span>
-                  </Link>
+                  </NavLink>
                 </li>
               ))}
             </ul>
