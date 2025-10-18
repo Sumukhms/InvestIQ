@@ -18,6 +18,7 @@ require('./config/passport-setup'); // Passport config
 const app = express();
 const port = process.env.PORT || 5000;
 
+// --- Middleware ---
 app.use(cors());
 app.use(express.json());
 
@@ -96,6 +97,40 @@ app.post('/api/growth-suggestions', async (req, res) => {
   }
 });
 
+// Test route to create a new scorecard
+app.post('/api/scorecards', async (req, res) => {
+  try {
+    // Create a new scorecard instance with sample data
+    // In a real application, this data would come from req.body
+    const newScorecard = new Scorecard({
+      userId: new mongoose.Types.ObjectId(), // Using a dummy ObjectId for testing
+      startupName: 'Test Startup',
+      overallScore: 85,
+      categoryScores: {
+        team: 90,
+        product: 80,
+        market: 75,
+        financials: 95,
+      },
+      strengths: ['Strong team', 'Great product'],
+      areasForImprovement: ['Needs more marketing'],
+    });
+
+    // Save the new scorecard to the database
+    const savedScorecard = await newScorecard.save();
+    
+    // Send the saved data back as a response
+    res.status(201).json(savedScorecard);
+    console.log('Successfully created a test scorecard!');
+
+  } catch (error) {
+    console.error('Error creating scorecard:', error);
+    res.status(500).json({ message: 'Failed to create scorecard', error: error.message });
+  }
+});
+
+
+// --- Start Server ---
 app.listen(port, () => {
   console.log(`InvestIQ MERN Backend is running on port: ${port}`);
 });
