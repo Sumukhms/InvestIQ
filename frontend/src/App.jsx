@@ -23,6 +23,7 @@ import ForgotPasswordPage from './components/ForgotPasswordPage';
 // --- IMPORT THE NEW PAGE ---
 import ResetPasswordPage from './components/ResetPasswordPage';
 import ProfilePage from './components/ProfilePage';
+import SettingsPage from './components/SettingsPage';
 const AppLayout = () => {
     const location = useLocation();
     const noNavbarRoutes = ['/', '/signup', '/forgot-password', '/privacy-policy', '/terms-of-service'];
@@ -54,7 +55,7 @@ const AppLayout = () => {
                 <Route path="/competitors" element={<CompetitorSetupPage />} />
                 <Route path="/growth-suggestions" element={<GrowthSuggestions />} />
                 <Route path="/profile" element={<ProfilePage/>} />
-                <Route path="/settings" element={<div>Settings Page</div>} />
+                <Route path="/settings" element={<SettingsPage/>} />
             </Routes>
         </div>
     );
