@@ -2,12 +2,11 @@
 
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import axios from 'axios'; // <-- 1. Import axios
+import axios from 'axios';
 import './Navbar.css';
 
 const Navbar = () => {
     const [isDropdownOpen, setDropdownOpen] = useState(false);
-    // 2. Add state to store user's profile picture
     const [profilePic, setProfilePic] = useState('https://via.placeholder.com/40');
     const navigate = useNavigate();
 
@@ -92,8 +91,7 @@ const Navbar = () => {
                     )}
                 </div>
             </div>
-        </div>
-        </nav >
+        </nav>
     );
 };
 

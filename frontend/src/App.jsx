@@ -22,7 +22,7 @@ import VerifyEmailPage from './components/VerifyEmailPage';
 import ForgotPasswordPage from './components/ForgotPasswordPage';
 // --- IMPORT THE NEW PAGE ---
 import ResetPasswordPage from './components/ResetPasswordPage';
-
+import ProfilePage from './components/ProfilePage';
 const AppLayout = () => {
     const location = useLocation();
     const noNavbarRoutes = ['/', '/signup', '/forgot-password', '/privacy-policy', '/terms-of-service'];
@@ -53,7 +53,7 @@ const AppLayout = () => {
                 {/* REMOVED: No longer need the /article/:articleId route */}
                 <Route path="/competitors" element={<CompetitorSetupPage />} />
                 <Route path="/growth-suggestions" element={<GrowthSuggestions />} />
-                <Route path="/profile" element={<div>Profile Page</div>} />
+                <Route path="/profile" element={<ProfilePage/>} />
                 <Route path="/settings" element={<div>Settings Page</div>} />
             </Routes>
         </div>
