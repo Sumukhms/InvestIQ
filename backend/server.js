@@ -8,7 +8,7 @@ const mongoose = require('mongoose');
 const passport = require('passport');
 const session = require('express-session');
 const Scorecard = require('./models/Scorecard'); // <-- IMPORT THE SCORECARD MODEL
-
+const Prediction = require('./models/Prediction');
 // --- For Debugging: Let's check if the keys are loaded ---
 console.log('SENDGRID_API_KEY loaded:', !!process.env.SENDGRID_API_KEY);
 console.log('EMAIL_USER loaded:', process.env.EMAIL_USER);
@@ -37,11 +37,13 @@ app.use(passport.session());
 const newsRoutes = require('./routes/news');
 const fundingRoutes = require('./routes/funding');
 const competitorRoutes = require('./routes/competitors'); // <-- Import the new competitor route
+const scorecardRoutes = require('./routes/scorecard');
 
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/news', newsRoutes);
 app.use('/api/funding', fundingRoutes);
 app.use('/api/competitors', competitorRoutes); // <-- Use the new competitor route
+app.use('/api/scorecards', scorecardRoutes); 
 
 app.post('/api/growth-suggestions', async (req, res) => {
     const { industry, stage, idea } = req.body;
@@ -135,6 +137,31 @@ app.post('/api/scorecards', async (req, res) => {
     console.error('Error creating scorecard:', error);
     res.status(500).json({ message: 'Failed to create scorecard', error: error.message });
   }
+});
+
+app.post('/api/predict-and-save', async (req, res) => {
+    const { startupData, userId } = req.body; // Assuming you send userId from the frontend
+
+    try {
+        // 1. Call the Python ML Service
+        const mlResponse = await axios.post('http://localhost:5001/predict', startupData);
+        const predictionData = mlResponse.data;
+
+        // 2. Save the prediction to the database
+        const newPrediction = new Prediction({
+            userId,
+            startupName: startupData.name, // Or another identifier
+            ...predictionData
+        });
+        await newPrediction.save();
+
+        // 3. Send the result back to the frontend
+        res.json(predictionData);
+
+    } catch (error) {
+        console.error("Error in prediction flow:", error.message);
+        res.status(500).json({ error: 'Failed to get and save prediction.' });
+    }
 });
 
 

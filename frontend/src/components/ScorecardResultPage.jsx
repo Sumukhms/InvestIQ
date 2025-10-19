@@ -1,6 +1,8 @@
 // Enhanced version - Copy this entire file to replace your existing ScorecardResultPage.jsx
 import React, { useState } from 'react';
 import { useLocation, Link } from 'react-router-dom';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 // Custom Circular Progressbar component to remove external dependency
 const CustomCircularProgressbar = ({ value, text, styles }) => {
