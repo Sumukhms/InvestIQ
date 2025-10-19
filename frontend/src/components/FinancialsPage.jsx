@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { 
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, 
   ResponsiveContainer, ReferenceLine, LineChart, Line, BarChart, Bar,
   PieChart, Pie, Cell 
 } from 'recharts';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 // Helper function to format large numbers
 const formatYAxis = (tickItem) => {
@@ -58,6 +60,9 @@ const CashFlowTooltip = ({ active, payload, label }) => {
 };
 
 const FinancialsPage = () => {
+  const reportRef = useRef(null);
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  
   // State for user inputs
   const [initialCash, setInitialCash] = useState('');
   const [monthlyRevenue, setMonthlyRevenue] = useState('');
@@ -255,6 +260,146 @@ const FinancialsPage = () => {
     localStorage.setItem('financialReports', JSON.stringify(updatedReports));
   };
 
+  const handleDownloadPDF = async () => {
+    if (!hasCalculated) {
+      alert('Please calculate metrics first before downloading PDF.');
+      return;
+    }
+
+    setIsGeneratingPDF(true);
+
+    try {
+      // Create a new jsPDF instance
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      let yPosition = 20;
+
+      // Add header
+      pdf.setFontSize(20);
+      pdf.setTextColor(66, 153, 225); // Blue color
+      pdf.text('Financial Health Report', pageWidth / 2, yPosition, { align: 'center' });
+      
+      yPosition += 10;
+      pdf.setFontSize(10);
+      pdf.setTextColor(128, 128, 128);
+      pdf.text(`Generated on ${new Date().toLocaleString()}`, pageWidth / 2, yPosition, { align: 'center' });
+      
+      yPosition += 15;
+
+      // Add key metrics
+      pdf.setFontSize(14);
+      pdf.setTextColor(0, 0, 0);
+      pdf.text('Key Metrics', 20, yPosition);
+      yPosition += 10;
+
+      pdf.setFontSize(11);
+      pdf.text(`Net Burn Rate: ${formatCurrency(Math.abs(metrics.netBurn))} ${metrics.netBurn < 0 ? '(Profitable)' : '(Burning)'}`, 25, yPosition);
+      yPosition += 8;
+      pdf.text(`Runway: ${metrics.runway === Infinity ? 'Infinite (Profitable)' : `${metrics.runway.toFixed(1)} months`}`, 25, yPosition);
+      yPosition += 8;
+      pdf.text(`Cash Balance: ${formatCurrency(metrics.cashBalance)}`, 25, yPosition);
+      yPosition += 8;
+      pdf.text(`Revenue Growth: ${metrics.growthRate > 0 ? '+' : ''}${metrics.growthRate.toFixed(1)}%`, 25, yPosition);
+      yPosition += 15;
+
+      // Capture charts
+      const chartsToCapture = [
+        { element: document.querySelector('.revenue-expenses-chart'), title: 'Revenue vs Expenses' },
+        { element: document.querySelector('.cash-flow-chart'), title: 'Monthly Cash Flow' },
+        { element: document.querySelector('.cash-balance-chart'), title: 'Cash Balance Over Time' }
+      ];
+
+      for (let i = 0; i < chartsToCapture.length; i++) {
+        const { element, title } = chartsToCapture[i];
+        
+        if (element) {
+          // Add new page if needed
+          if (yPosition > pageHeight - 80) {
+            pdf.addPage();
+            yPosition = 20;
+          }
+
+          // Add chart title
+          pdf.setFontSize(12);
+          pdf.setTextColor(59, 130, 246); // Blue
+          pdf.text(title, 20, yPosition);
+          yPosition += 8;
+
+          // Capture chart as image
+          const canvas = await html2canvas(element, {
+            scale: 2,
+            backgroundColor: '#1f2937',
+            logging: false
+          });
+
+          const imgData = canvas.toDataURL('image/png');
+          const imgWidth = pageWidth - 40;
+          const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+          pdf.addImage(imgData, 'PNG', 20, yPosition, imgWidth, imgHeight);
+          yPosition += imgHeight + 15;
+        }
+      }
+
+      // Add insights section
+      if (yPosition > pageHeight - 60) {
+        pdf.addPage();
+        yPosition = 20;
+      }
+
+      pdf.setFontSize(14);
+      pdf.setTextColor(0, 0, 0);
+      pdf.text('Insights & Recommendations', 20, yPosition);
+      yPosition += 10;
+
+      pdf.setFontSize(10);
+      const insights = [];
+
+      if (metrics.runway < 6 && metrics.runway !== Infinity) {
+        insights.push('⚠ CRITICAL: Less than 6 months runway remaining. Consider immediate fundraising or cost reduction.');
+      }
+      if (metrics.growthRate < 0) {
+        insights.push(`📉 Revenue declining (${metrics.growthRate.toFixed(1)}%). Review product-market fit and pricing strategy.`);
+      }
+      if (metrics.growthRate > 20) {
+        insights.push(`🚀 Strong growth (${metrics.growthRate.toFixed(1)}%)! Consider reinvesting strategically.`);
+      }
+      if (metrics.netBurn < 0) {
+        insights.push(`✅ Profitable! Generating ${formatCurrency(Math.abs(metrics.netBurn))}/month.`);
+      }
+      if (metrics.avgExpenses / metrics.avgRevenue > 2 && metrics.avgRevenue > 0) {
+        insights.push(`💸 High costs: Expenses are ${((metrics.avgExpenses / metrics.avgRevenue) * 100).toFixed(0)}% of revenue.`);
+      }
+
+      if (insights.length === 0) {
+        insights.push('✓ Financial health looks stable. Continue monitoring key metrics.');
+      }
+
+      insights.forEach(insight => {
+        const lines = pdf.splitTextToSize(insight, pageWidth - 50);
+        pdf.text(lines, 25, yPosition);
+        yPosition += (lines.length * 6) + 3;
+      });
+
+      // Add footer
+      pdf.setFontSize(8);
+      pdf.setTextColor(128, 128, 128);
+      pdf.text('Generated by InvestIQ Financial Dashboard', pageWidth / 2, pageHeight - 10, { align: 'center' });
+
+      // Save the PDF
+      const fileName = `financial-report-${new Date().getTime()}.pdf`;
+      pdf.save(fileName);
+
+      alert('PDF downloaded successfully!');
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      alert('Failed to generate PDF. Please try again.');
+    } finally {
+      setIsGeneratingPDF(false);
+    }
+  };
+
   // Helper to get status color
   const getRunwayColor = (runway) => {
     if (runway === Infinity) return 'text-green-400';
@@ -281,12 +426,31 @@ const FinancialsPage = () => {
           </div>
           <div className="flex gap-2">
             {hasCalculated && (
-              <button
-                onClick={handleSaveReport}
-                className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg text-sm font-medium transition-colors"
-              >
-                💾 Save Report
-              </button>
+              <>
+                <button
+                  onClick={handleDownloadPDF}
+                  disabled={isGeneratingPDF}
+                  className="px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isGeneratingPDF ? (
+                    <span className="flex items-center gap-2">
+                      <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
+                      </svg>
+                      Generating...
+                    </span>
+                  ) : (
+                    '📄 Download PDF'
+                  )}
+                </button>
+                <button
+                  onClick={handleSaveReport}
+                  className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg text-sm font-medium transition-colors"
+                >
+                  💾 Save Report
+                </button>
+              </>
             )}
             <button
               onClick={() => setShowSaved(!showSaved)}
@@ -532,7 +696,7 @@ const FinancialsPage = () => {
         </div>
 
         {/* Revenue vs Expenses Chart */}
-        <div className="bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-700">
+        <div className="bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-700 revenue-expenses-chart">
           <h2 className="text-2xl font-semibold mb-4 text-blue-400">💰 Revenue vs. Expenses</h2>
           {chartData.length > 0 ? (
             <ResponsiveContainer width="100%" height={300}>

@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 import { Link, useNavigate } from 'react-router-dom';
-import './Auth.css'; // <-- IMPORT THE NEW CSS FILE
+import './Auth.css';
 
-const LoginPage = () => {
+const LoginPage = ({ setProfileData }) => {
     const [formData, setFormData] = useState({ email: '', password: '' });
     const navigate = useNavigate();
     const { email, password } = formData;
@@ -14,8 +14,38 @@ const LoginPage = () => {
         event.preventDefault();
         try {
             const res = await axios.post('/api/auth/login', formData);
+            
+            // Store the token
             localStorage.setItem('token', res.data.token);
-            navigate('/dashboard'); 
+            
+            // IMPORTANT: Fetch and set profile data immediately after login
+            if (res.data.token) {
+                try {
+                    const profileRes = await axios.get('/api/auth/profile', {
+                        headers: { 'x-auth-token': res.data.token }
+                    });
+                    
+                    console.log('Profile data fetched after login:', profileRes.data);
+                    
+                    // Update App-level profile state
+                    if (setProfileData) {
+                        setProfileData({
+                            name: profileRes.data.name || '',
+                            email: profileRes.data.email || '',
+                            role: profileRes.data.role || '',
+                            company: profileRes.data.company || '',
+                            bio: profileRes.data.bio || '',
+                            avatar: profileRes.data.avatar || ''
+                        });
+                    }
+                } catch (profileErr) {
+                    console.error('Failed to fetch profile after login:', profileErr);
+                    // Continue to dashboard even if profile fetch fails
+                }
+            }
+            
+            // Navigate to dashboard
+            navigate('/dashboard');
         } catch (err) {
             alert(err.response?.data?.msg || 'Login failed.');
         }

@@ -4,8 +4,8 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
-const ProfilePage = () => {
-  const [profileData, setProfileData] = useState({
+const ProfilePage = ({ profileData, setProfileData }) => {
+  const [localProfileData, setLocalProfileData] = useState({
     name: '',
     email: '',
     role: '',
@@ -30,9 +30,27 @@ const ProfilePage = () => {
   });
 
   useEffect(() => {
-    fetchProfile();
+    // If profileData prop exists, use it to initialize
+    if (profileData) {
+      console.log('ProfilePage: Using prop data', profileData);
+      setLocalProfileData({
+        name: profileData.name || '',
+        email: profileData.email || '',
+        role: profileData.role || '',
+        company: profileData.company || '',
+        bio: profileData.bio || '',
+        avatar: profileData.avatar || ''
+      });
+      if (profileData.avatar) {
+        setAvatarPreview(profileData.avatar);
+      }
+      setIsLoading(false);
+    } else {
+      // Fallback: fetch if prop is not available
+      fetchProfile();
+    }
     loadUserStats();
-  }, []);
+  }, [profileData]);
 
   const fetchProfile = async () => {
     const token = localStorage.getItem('token');
@@ -48,14 +66,21 @@ const ProfilePage = () => {
       };
       const res = await axios.get('http://localhost:5000/api/auth/profile', config);
 
-      setProfileData({
+      const fetchedData = {
         name: res.data.name || '',
         email: res.data.email || '',
         role: res.data.role || '',
         company: res.data.company || '',
         bio: res.data.bio || '',
         avatar: res.data.avatar || ''
-      });
+      };
+
+      setLocalProfileData(fetchedData);
+      
+      // IMPORTANT: Update the App-level profile data
+      if (setProfileData) {
+        setProfileData(fetchedData);
+      }
 
       if (res.data.avatar) {
         setAvatarPreview(res.data.avatar);
@@ -89,7 +114,7 @@ const ProfilePage = () => {
   };
 
   const handleChange = (e) => {
-    setProfileData({ ...profileData, [e.target.name]: e.target.value });
+    setLocalProfileData({ ...localProfileData, [e.target.name]: e.target.value });
   };
 
   const handleAvatarChange = (e) => {
@@ -103,7 +128,7 @@ const ProfilePage = () => {
       const reader = new FileReader();
       reader.onloadend = () => {
         setAvatarPreview(reader.result);
-        setProfileData({ ...profileData, avatar: reader.result });
+        setLocalProfileData({ ...localProfileData, avatar: reader.result });
       };
       reader.readAsDataURL(file);
     }
@@ -121,8 +146,16 @@ const ProfilePage = () => {
           'x-auth-token': token
         }
       };
-      const res = await axios.put('http://localhost:5000/api/auth/profile', profileData, config);
-      setProfileData(res.data);
+      const res = await axios.put('http://localhost:5000/api/auth/profile', localProfileData, config);
+      
+      const updatedData = res.data;
+      setLocalProfileData(updatedData);
+      
+      // IMPORTANT: Update the App-level profile data so Navbar reflects changes
+      if (setProfileData) {
+        console.log('ProfilePage: Updating App-level profile data', updatedData);
+        setProfileData(updatedData);
+      }
       
       setShowSuccess(true);
       setTimeout(() => setShowSuccess(false), 3000);
@@ -196,7 +229,7 @@ const ProfilePage = () => {
                 {avatarPreview ? (
                   <img src={avatarPreview} alt="Profile" className="w-full h-full object-cover" />
                 ) : (
-                  <span>{getInitials(profileData.name || 'User')}</span>
+                  <span>{getInitials(localProfileData.name || 'User')}</span>
                 )}
               </div>
               <label className="absolute bottom-0 right-0 bg-blue-600 hover:bg-blue-700 rounded-full p-2 cursor-pointer transition-colors">
@@ -216,17 +249,17 @@ const ProfilePage = () => {
             {/* User Info */}
             <div className="flex-1 text-center md:text-left">
               <h2 className="text-3xl font-bold text-white mb-2">
-                {profileData.name || 'Your Name'}
+                {localProfileData.name || 'Your Name'}
               </h2>
-              <p className="text-gray-400 mb-3">{profileData.email}</p>
-              {profileData.role && (
+              <p className="text-gray-400 mb-3">{localProfileData.email}</p>
+              {localProfileData.role && (
                 <div className="flex flex-wrap gap-2 justify-center md:justify-start">
-                  <span className={`px-3 py-1 rounded-full text-sm font-medium border ${getRoleBadgeColor(profileData.role)}`}>
-                    {profileData.role}
+                  <span className={`px-3 py-1 rounded-full text-sm font-medium border ${getRoleBadgeColor(localProfileData.role)}`}>
+                    {localProfileData.role}
                   </span>
-                  {profileData.company && (
+                  {localProfileData.company && (
                     <span className="px-3 py-1 rounded-full text-sm font-medium bg-gray-700 text-gray-300 border border-gray-600">
-                      🏢 {profileData.company}
+                      🏢 {localProfileData.company}
                     </span>
                   )}
                 </div>
@@ -285,7 +318,7 @@ const ProfilePage = () => {
                       type="text"
                       id="name"
                       name="name"
-                      value={profileData.name}
+                      value={localProfileData.name}
                       onChange={handleChange}
                       placeholder="Enter your full name"
                       className={inputStyles}
@@ -297,7 +330,7 @@ const ProfilePage = () => {
                     <label className={labelStyles}>Email Address</label>
                     <input
                       type="email"
-                      value={profileData.email}
+                      value={localProfileData.email}
                       className={`${inputStyles} opacity-60 cursor-not-allowed`}
                       disabled
                     />
@@ -317,7 +350,7 @@ const ProfilePage = () => {
                     <select
                       id="role"
                       name="role"
-                      value={profileData.role}
+                      value={localProfileData.role}
                       onChange={handleChange}
                       className={inputStyles}
                       required
@@ -339,7 +372,7 @@ const ProfilePage = () => {
                       type="text"
                       id="company"
                       name="company"
-                      value={profileData.company}
+                      value={localProfileData.company}
                       onChange={handleChange}
                       placeholder="e.g., Your Startup Inc."
                       className={inputStyles}
@@ -355,14 +388,14 @@ const ProfilePage = () => {
                 <textarea
                   id="bio"
                   name="bio"
-                  value={profileData.bio}
+                  value={localProfileData.bio}
                   onChange={handleChange}
                   rows="4"
                   placeholder="Tell us a little about yourself..."
                   className={`${inputStyles} resize-y`}
                 ></textarea>
                 <p className="text-xs text-gray-500 mt-1">
-                  {profileData.bio.length}/500 characters
+                  {localProfileData.bio.length}/500 characters
                 </p>
               </div>
 

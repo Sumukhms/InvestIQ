@@ -1,11 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, NavLink, useNavigate, useLocation } from 'react-router-dom';
 
-const Navbar = () => {
+// The component now receives `profileData` as a prop from its parent (App.jsx)
+const Navbar = ({ profileData }) => {
   const [isDropdownOpen, setDropdownOpen] = useState(false);
   const [isNotificationsOpen, setNotificationsOpen] = useState(false);
   const [isMobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [profileData, setProfileData] = useState(null);
+  
+  // REMOVED: The local state for profileData is gone.
+  
   const [notifications, setNotifications] = useState([]);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   
@@ -15,8 +18,8 @@ const Navbar = () => {
   const notificationRef = useRef(null);
 
   useEffect(() => {
-    loadProfileData();
-    loadNotifications();
+    // REMOVED: The call to the mock `loadProfileData()` function is gone.
+    loadNotifications(); // We'll keep mock notifications for now.
     
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -29,17 +32,9 @@ const Navbar = () => {
 
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  }, []); // This effect now runs only once when the component mounts.
 
-  const loadProfileData = () => {
-    const mockProfile = {
-      name: 'John Doe',
-      email: 'john.doe@example.com',
-      avatar: null,
-      role: 'Investor'
-    };
-    setProfileData(mockProfile);
-  };
+  // REMOVED: The entire `loadProfileData` function with the mock "John Doe" data is deleted.
 
   const loadNotifications = () => {
     const mockNotifications = [
@@ -55,7 +50,8 @@ const Navbar = () => {
 
   const handleLogout = () => {
     if (window.confirm('Are you sure you want to logout?')) {
-      navigate('/');
+      localStorage.removeItem('token');
+      navigate('/'); // App.jsx will handle clearing the profile data globally
     }
   };
 
@@ -297,7 +293,7 @@ const Navbar = () => {
                 </div>
               )}
             </div>
-
+            
             {/* Mobile Menu Toggle */}
             <button
               onClick={() => setMobileMenuOpen(!isMobileMenuOpen)}
@@ -342,3 +338,4 @@ const Navbar = () => {
 };
 
 export default Navbar;
+
