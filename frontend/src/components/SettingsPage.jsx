@@ -4,6 +4,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import { applyTheme } from '../utils/theme';
 
 const SettingsPage = () => {
   const navigate = useNavigate();
@@ -133,14 +134,6 @@ const SettingsPage = () => {
 
     } catch (err) {
       console.error('Failed to auto-save settings:', err);
-    }
-  };
-
-  const applyTheme = (selectedTheme) => {
-    if (selectedTheme === 'light') {
-      document.documentElement.classList.remove('dark');
-    } else {
-      document.documentElement.classList.add('dark');
     }
   };
 

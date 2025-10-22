@@ -2,61 +2,64 @@ import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
 import axios from 'axios';
 
-import Navbar from './components/Navbar.jsx';
-import LoginPage from './components/LoginPage.jsx';
-import SignUpPage from './components/SignUpPage.jsx';
-import DashboardPage from './components/DashboardPage.jsx';
-import ScorecardInput from './components/ScorecardInput.jsx';
-import ScorecardResultPage from './components/ScorecardResultPage.jsx';
-import FinancialsPage from './components/FinancialsPage.jsx';
-import GrowthSuggestions from './components/GrowthSuggestions.jsx';
-import AlertsFeedPage from './components/AlertsFeedPage.jsx';
-import CompetitorSetupPage from './components/CompetitorSetupPage.jsx';
-import ProfilePage from './components/ProfilePage.jsx';
-import SettingsPage from './components/SettingsPage.jsx';
-import ForgotPasswordPage from './components/ForgotPasswordPage.jsx';
-import ResetPasswordPage from './components/ResetPasswordPage.jsx';
-import VerifyEmailPage from './components/VerifyEmailPage.jsx';
-import AuthSuccessPage from './components/AuthSuccessPage.jsx';
-import PrivacyPolicyPage from './components/PrivacyPolicyPage.jsx';
-import TermsOfServicePage from './components/TermsOfServicePage.jsx';
+// Corrected import paths to be relative and without file extensions
+import Navbar from './components/Navbar';
+import LoginPage from './components/LoginPage';
+import SignUpPage from './components/SignUpPage';
+import DashboardPage from './components/DashboardPage';
+import ScorecardInput from './components/ScorecardInput';
+import ScorecardResultPage from './components/ScorecardResultPage';
+import FinancialsPage from './components/FinancialsPage';
+import GrowthSuggestions from './components/GrowthSuggestions';
+import AlertsFeedPage from './components/AlertsFeedPage';
+import CompetitorSetupPage from './components/CompetitorSetupPage';
+import ProfilePage from './components/ProfilePage';
+import SettingsPage from './components/SettingsPage';
+import ForgotPasswordPage from './components/ForgotPasswordPage';
+import ResetPasswordPage from './components/ResetPasswordPage';
+import VerifyEmailPage from './components/VerifyEmailPage';
+import AuthSuccessPage from './components/AuthSuccessPage';
+import PrivacyPolicyPage from './components/PrivacyPolicyPage';
+import TermsOfServicePage from './components/TermsOfServicePage';
+import { applyTheme } from './utils/theme.js';
 
 function App() {
   const [profileData, setProfileData] = useState(null);
-  const [theme, setTheme] = useState('dark'); // Default theme
   const [isLoading, setIsLoading] = useState(true);
+  const [defaultPage, setDefaultPage] = useState('/dashboard');
 
-  // --- GLOBAL THEME LOGIC ---
+  // --- COMBINED: FETCH USER PROFILE & APPLY THEME ON APP LOAD ---
   useEffect(() => {
-    // This effect applies the theme to the entire document
-    if (theme === 'light') {
-      document.documentElement.classList.remove('dark');
-    } else {
-      document.documentElement.classList.add('dark');
-    }
-  }, [theme]);
-
-  // --- FETCH USER PROFILE & SETTINGS ON APP LOAD ---
-  useEffect(() => {
-    const fetchProfile = async () => {
+    const fetchUserAndApplyTheme = async () => {
       const token = localStorage.getItem('token');
       if (token) {
         try {
           const config = { headers: { 'x-auth-token': token } };
           const res = await axios.get('http://localhost:5000/api/auth/profile', config);
-          setProfileData(res.data);
-          // Set the theme based on the user's saved settings
-          if (res.data.settings && res.data.settings.theme) {
-            setTheme(res.data.settings.theme);
+          
+          if (res.data) {
+            setProfileData(res.data);
+            const savedTheme = res.data.settings?.theme || 'dark';
+            applyTheme(savedTheme);
+            
+            const savedPage = res.data.settings?.defaultLandingPage;
+            if (savedPage) {
+              setDefaultPage(savedPage);
+            }
           }
+
         } catch (error) {
           console.error("Could not fetch profile on app load:", error);
-          localStorage.removeItem('token'); // Invalid token, log user out
+          localStorage.removeItem('token');
+          applyTheme('dark');
         }
+      } else {
+         applyTheme('dark');
       }
       setIsLoading(false);
     };
-    fetchProfile();
+    
+    fetchUserAndApplyTheme();
   }, []);
 
   if (isLoading) {
@@ -69,8 +72,11 @@ function App() {
 
   return (
     <Router>
-      <Navbar profileData={profileData} setProfileData={setProfileData} />
-      <main className="pt-20"> {/* Add padding to offset fixed navbar */}
+      {/* Conditionally render Navbar only when logged in */}
+      {profileData && <Navbar profileData={profileData} setProfileData={setProfileData} />}
+      
+      {/* Apply padding-top only when Navbar is present to account for fixed navbar */}
+      <main className={profileData ? "pt-16" : ""}>
         <Routes>
           <Route path="/login" element={<LoginPage setProfileData={setProfileData} />} />
           <Route path="/signup" element={<SignUpPage />} />
@@ -83,7 +89,10 @@ function App() {
           <Route path="/terms-of-service" element={<TermsOfServicePage />} />
 
           {/* Protected Routes */}
-          <Route path="/" element={profileData ? <Navigate to="/dashboard" /> : <Navigate to="/login" />} />
+          <Route 
+            path="/" 
+            element={profileData ? <Navigate to={defaultPage} /> : <Navigate to="/login" />} 
+          />
           <Route path="/dashboard" element={profileData ? <DashboardPage /> : <Navigate to="/login" />} />
           <Route path="/scorecard" element={profileData ? <ScorecardInput /> : <Navigate to="/login" />} />
           <Route path="/results" element={profileData ? <ScorecardResultPage /> : <Navigate to="/login" />} />
@@ -98,7 +107,7 @@ function App() {
           />
           <Route 
             path="/settings" 
-            element={profileData ? <SettingsPage currentTheme={theme} setTheme={setTheme} /> : <Navigate to="/login" />} 
+            element={profileData ? <SettingsPage /> : <Navigate to="/login" />} 
           />
 
           <Route path="*" element={<Navigate to="/" />} />
@@ -109,4 +118,3 @@ function App() {
 }
 
 export default App;
-

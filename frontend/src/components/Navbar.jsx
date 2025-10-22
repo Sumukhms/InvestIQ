@@ -1,13 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, NavLink, useNavigate, useLocation } from 'react-router-dom';
 
-// The component now receives `profileData` as a prop from its parent (App.jsx)
-const Navbar = ({ profileData }) => {
+// The component receives both profileData and setProfileData from App.jsx
+const Navbar = ({ profileData = null, setProfileData }) => {
   const [isDropdownOpen, setDropdownOpen] = useState(false);
   const [isNotificationsOpen, setNotificationsOpen] = useState(false);
   const [isMobileMenuOpen, setMobileMenuOpen] = useState(false);
-  
-  // REMOVED: The local state for profileData is gone.
   
   const [notifications, setNotifications] = useState([]);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
@@ -18,8 +16,7 @@ const Navbar = ({ profileData }) => {
   const notificationRef = useRef(null);
 
   useEffect(() => {
-    // REMOVED: The call to the mock `loadProfileData()` function is gone.
-    loadNotifications(); // We'll keep mock notifications for now.
+    loadNotifications();
     
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -32,9 +29,7 @@ const Navbar = ({ profileData }) => {
 
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []); // This effect now runs only once when the component mounts.
-
-  // REMOVED: The entire `loadProfileData` function with the mock "John Doe" data is deleted.
+  }, []);
 
   const loadNotifications = () => {
     const mockNotifications = [
@@ -51,7 +46,11 @@ const Navbar = ({ profileData }) => {
   const handleLogout = () => {
     if (window.confirm('Are you sure you want to logout?')) {
       localStorage.removeItem('token');
-      navigate('/'); // App.jsx will handle clearing the profile data globally
+      // Clear profile data in parent component
+      if (setProfileData) {
+        setProfileData(null);
+      }
+      navigate('/login');
     }
   };
 
@@ -68,12 +67,13 @@ const Navbar = ({ profileData }) => {
   };
 
   const getInitials = (name) => {
+    if (!name) return 'U';
     return name
-      ?.split(' ')
+      .split(' ')
       .map(word => word[0])
       .join('')
       .toUpperCase()
-      .slice(0, 2) || 'U';
+      .slice(0, 2);
   };
 
   const isActive = (path) => location.pathname === path;
@@ -81,9 +81,9 @@ const Navbar = ({ profileData }) => {
   const navLinks = [
     { path: '/dashboard', label: 'Dashboard', icon: '📊' },
     { path: '/scorecard', label: 'Scorecard', icon: '🎯' },
-    { path: '/growth-suggestions', label: 'AI Advisor', icon: '🤖' },
+    { path: '/growth', label: 'AI Advisor', icon: '🤖' },
     { path: '/financials', label: 'Financials', icon: '💰' },
-    { path: '/alerts', label: 'Alerts', icon: '🔔' },
+    { path: '/news', label: 'News', icon: '🔔' },
     { path: '/competitors', label: 'Competitors', icon: '⚔️' },
   ];
 
@@ -106,7 +106,7 @@ const Navbar = ({ profileData }) => {
   };
 
   return (
-    <nav className="sticky top-0 z-50 bg-gray-800 border-b border-gray-700 shadow-lg">
+    <nav className="fixed top-0 left-0 right-0 z-50 bg-gray-800 border-b border-gray-700 shadow-lg">
       <div className="max-w-7xl mx-auto px-4">
         <div className="flex items-center justify-between h-16">
           {/* Logo & Brand */}
@@ -246,8 +246,8 @@ const Navbar = ({ profileData }) => {
                         )}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-white truncate">{profileData?.name}</p>
-                        <p className="text-xs text-gray-400 truncate">{profileData?.email}</p>
+                        <p className="font-semibold text-white truncate">{profileData?.name || 'User'}</p>
+                        <p className="text-xs text-gray-400 truncate">{profileData?.email || 'user@example.com'}</p>
                       </div>
                     </div>
                   </div>
@@ -338,4 +338,3 @@ const Navbar = ({ profileData }) => {
 };
 
 export default Navbar;
-

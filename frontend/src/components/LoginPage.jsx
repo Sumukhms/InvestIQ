@@ -102,4 +102,4 @@ const LoginPage = ({ setProfileData }) => {
     );
 };
 
-export default LoginPage;z
+export default LoginPage;
