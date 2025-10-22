@@ -39,6 +39,7 @@ const fundingRoutes = require('./routes/funding');
 const competitorsRoute = require('./routes/competitors');
 const scorecardRoutes = require('./routes/scorecard');
 const settingsRoutes = require('./routes/settings');
+const chatbotRoutes = require('./routes/chatbot');
 
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/news', newsRoutes);
@@ -47,6 +48,7 @@ app.use('/api/competitors', competitorsRoute);
 // --- FIX: Changed '/api/scorecards' to '/api/scorecard' to match the frontend call ---
 app.use('/api/scorecard', scorecardRoutes); 
 app.use('/api/settings', settingsRoutes);
+app.use('/api/chatbot', chatbotRoutes);
 
 app.post('/api/growth-suggestions', async (req, res) => {
     const { industry, stage, idea } = req.body;

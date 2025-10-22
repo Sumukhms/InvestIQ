@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
 import axios from 'axios';
 
-// Corrected import paths to be relative and without file extensions
+// Corrected import paths to be relative and REMOVED file extensions
 import Navbar from './components/Navbar';
 import LoginPage from './components/LoginPage';
 import SignUpPage from './components/SignUpPage';
@@ -21,7 +21,8 @@ import VerifyEmailPage from './components/VerifyEmailPage';
 import AuthSuccessPage from './components/AuthSuccessPage';
 import PrivacyPolicyPage from './components/PrivacyPolicyPage';
 import TermsOfServicePage from './components/TermsOfServicePage';
-import { applyTheme } from './utils/theme.js';
+import { applyTheme } from './utils/theme';
+import Chatbot from './components/Chatbot';
 
 function App() {
   const [profileData, setProfileData] = useState(null);
@@ -34,8 +35,9 @@ function App() {
       const token = localStorage.getItem('token');
       if (token) {
         try {
+          // Use relative path for API proxy
           const config = { headers: { 'x-auth-token': token } };
-          const res = await axios.get('http://localhost:5000/api/auth/profile', config);
+          const res = await axios.get('/api/auth/profile', config);
           
           if (res.data) {
             setProfileData(res.data);
@@ -54,7 +56,7 @@ function App() {
           applyTheme('dark');
         }
       } else {
-         applyTheme('dark');
+          applyTheme('dark');
       }
       setIsLoading(false);
     };
@@ -80,7 +82,9 @@ function App() {
         <Routes>
           <Route path="/login" element={<LoginPage setProfileData={setProfileData} />} />
           <Route path="/signup" element={<SignUpPage />} />
+          {/* Note: /verify-email might need :token */}
           <Route path="/verify-email" element={<VerifyEmailPage />} />
+          <Route path="/verify-email/:token" element={<VerifyEmailPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
           <Route path="/auth/success" element={<AuthSuccessPage setProfileData={setProfileData} />} />
@@ -95,11 +99,15 @@ function App() {
           />
           <Route path="/dashboard" element={profileData ? <DashboardPage /> : <Navigate to="/login" />} />
           <Route path="/scorecard" element={profileData ? <ScorecardInput /> : <Navigate to="/login" />} />
-          <Route path="/results" element={profileData ? <ScorecardResultPage /> : <Navigate to="/login" />} />
+          {/* Added /results route from your previous file */}
+          <Route path="/scorecard-result" element={profileData ? <ScorecardResultPage /> : <Navigate to="/login" />} />
           <Route path="/financials" element={profileData ? <FinancialsPage /> : <Navigate to="/login" />} />
-          <Route path="/growth" element={profileData ? <GrowthSuggestions /> : <Navigate to="/login" />} />
-          <Route path="/news" element={profileData ? <AlertsFeedPage /> : <Navigate to="/login" />} />
-          <Route path="/competitors" element={profileData ? <CompetitorSetupPage /> : <Navigate to="/login" />} />
+          {/* Added /growth route from your previous file */}
+          <Route path="/growth-suggestions" element={profileData ? <GrowthSuggestions /> : <Navigate to="/login" />} />
+          {/* Added /news route from your previous file */}
+          <Route path="/alerts-feed" element={profileData ? <AlertsFeedPage /> : <Navigate to="/login" />} />
+          {/* Added /competitors route from your previous file */}
+          <Route path="/competitor-setup" element={profileData ? <CompetitorSetupPage /> : <Navigate to="/login" />} />
           
           <Route 
             path="/profile" 
@@ -113,8 +121,12 @@ function App() {
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </main>
+      
+      {/* Conditionally render Chatbot only when logged in */}
+      {profileData && <Chatbot />}
     </Router>
   );
 }
 
 export default App;
+
