@@ -20,10 +20,10 @@ const ProfilePage = ({ profileData, setProfileData }) => {
   const [showSuccess, setShowSuccess] = useState(false);
   const [avatarPreview, setAvatarPreview] = useState(null);
 
-  // User statistics (mock data - replace with actual API)
+  // User statistics - will be loaded from the backend
   const [userStats, setUserStats] = useState({
     scorecardsGenerated: 0,
-    financialReports: 0,
+    financialReports: 0, // Note: This and others below are still mock/localStorage based
     growthAdvice: 0,
     watchedCompetitors: 0,
     accountAge: 0
@@ -32,7 +32,6 @@ const ProfilePage = ({ profileData, setProfileData }) => {
   useEffect(() => {
     // If profileData prop exists, use it to initialize
     if (profileData) {
-      console.log('ProfilePage: Using prop data', profileData);
       setLocalProfileData({
         name: profileData.name || '',
         email: profileData.email || '',
@@ -49,6 +48,7 @@ const ProfilePage = ({ profileData, setProfileData }) => {
       // Fallback: fetch if prop is not available
       fetchProfile();
     }
+    // Load stats after profile is potentially fetched
     loadUserStats();
   }, [profileData]);
 
@@ -77,7 +77,6 @@ const ProfilePage = ({ profileData, setProfileData }) => {
 
       setLocalProfileData(fetchedData);
       
-      // IMPORTANT: Update the App-level profile data
       if (setProfileData) {
         setProfileData(fetchedData);
       }
@@ -93,9 +92,21 @@ const ProfilePage = ({ profileData, setProfileData }) => {
     }
   };
 
-  const loadUserStats = () => {
-    // Load stats from localStorage
-    const scorecards = JSON.parse(localStorage.getItem('scorecardHistory') || '[]');
+  // --- MODIFIED TO FETCH SCORECARD COUNT FROM API ---
+  const loadUserStats = async () => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+
+    let scorecardsCount = 0;
+    try {
+      const config = { headers: { 'x-auth-token': token } };
+      const res = await axios.get('http://localhost:5000/api/scorecard/history', config);
+      scorecardsCount = res.data.length; // Get the count of scorecards from the DB
+    } catch (err) {
+      console.error("Could not fetch scorecard stats:", err);
+    }
+    
+    // Load other stats from localStorage (as backend routes for these don't exist yet)
     const financials = JSON.parse(localStorage.getItem('financialReports') || '[]');
     const growth = JSON.parse(localStorage.getItem('growthSuggestions') || '[]');
     const watchlist = JSON.parse(localStorage.getItem('competitorWatchlist') || '[]');
@@ -105,7 +116,7 @@ const ProfilePage = ({ profileData, setProfileData }) => {
     const ageInDays = Math.floor((new Date() - new Date(accountCreated)) / (1000 * 60 * 60 * 24));
 
     setUserStats({
-      scorecardsGenerated: scorecards.length,
+      scorecardsGenerated: scorecardsCount, // <-- Use the count from the database
       financialReports: financials.length,
       growthAdvice: growth.length,
       watchedCompetitors: watchlist.length,
@@ -151,9 +162,7 @@ const ProfilePage = ({ profileData, setProfileData }) => {
       const updatedData = res.data;
       setLocalProfileData(updatedData);
       
-      // IMPORTANT: Update the App-level profile data so Navbar reflects changes
       if (setProfileData) {
-        console.log('ProfilePage: Updating App-level profile data', updatedData);
         setProfileData(updatedData);
       }
       
@@ -168,6 +177,7 @@ const ProfilePage = ({ profileData, setProfileData }) => {
   };
 
   const getInitials = (name) => {
+    if (!name) return 'U';
     return name
       .split(' ')
       .map(word => word[0])
@@ -229,7 +239,7 @@ const ProfilePage = ({ profileData, setProfileData }) => {
                 {avatarPreview ? (
                   <img src={avatarPreview} alt="Profile" className="w-full h-full object-cover" />
                 ) : (
-                  <span>{getInitials(localProfileData.name || 'User')}</span>
+                  <span>{getInitials(localProfileData.name)}</span>
                 )}
               </div>
               <label className="absolute bottom-0 right-0 bg-blue-600 hover:bg-blue-700 rounded-full p-2 cursor-pointer transition-colors">
@@ -395,14 +405,14 @@ const ProfilePage = ({ profileData, setProfileData }) => {
                   className={`${inputStyles} resize-y`}
                 ></textarea>
                 <p className="text-xs text-gray-500 mt-1">
-                  {localProfileData.bio.length}/500 characters
+                  {localProfileData.bio ? localProfileData.bio.length : 0}/500 characters
                 </p>
               </div>
 
               <div className="flex items-center justify-between pt-6 border-t border-gray-700">
                 <button
                   type="button"
-                  onClick={() => window.location.href = '/settings'}
+                  onClick={() => navigate('/settings')}
                   className="px-6 py-3 bg-gray-700 hover:bg-gray-600 rounded-lg font-medium transition-colors"
                 >
                   Advanced Settings

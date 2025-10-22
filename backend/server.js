@@ -36,14 +36,17 @@ app.use(passport.session());
 // --- Define Routes ---
 const newsRoutes = require('./routes/news');
 const fundingRoutes = require('./routes/funding');
-const competitorsRoute = require('./routes/competitors'); // <-- Import the new competitor route
+const competitorsRoute = require('./routes/competitors');
 const scorecardRoutes = require('./routes/scorecard');
+const settingsRoutes = require('./routes/settings');
 
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/news', newsRoutes);
 app.use('/api/funding', fundingRoutes);
-app.use('/api/competitors', competitorsRoute); // <-- Use the new competitor route
-app.use('/api/scorecards', scorecardRoutes); 
+app.use('/api/competitors', competitorsRoute); 
+// --- FIX: Changed '/api/scorecards' to '/api/scorecard' to match the frontend call ---
+app.use('/api/scorecard', scorecardRoutes); 
+app.use('/api/settings', settingsRoutes);
 
 app.post('/api/growth-suggestions', async (req, res) => {
     const { industry, stage, idea } = req.body;

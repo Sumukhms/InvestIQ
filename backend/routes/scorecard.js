@@ -1,46 +1,26 @@
-// backend/routes/scorecard.js
 const express = require('express');
 const router = express.Router();
 const Scorecard = require('../models/Scorecard');
-const mongoose = require('mongoose');
+const auth = require('../middleware/auth'); // <-- CORRECT: Using the JWT auth middleware
 
-// Middleware to check for a valid user ID
-const checkAuth = (req, res, next) => {
-  // In a real app, this would come from a decoded JWT token or session.
-  // For now, we'll get it from the request body or query params.
-  const userId = req.body.userId || req.query.userId || req.params.userId;
-  if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
-    return res.status(401).json({ message: 'Authentication failed: User ID is missing or invalid.' });
-  }
-  req.userData = { userId }; // Attach userId to the request object
-  next();
-};
-
-
-// @route   POST /api/scorecards/save
-// @desc    Save a new scorecard report to the database
-// @access  Private (uses checkAuth middleware)
-router.post('/save', checkAuth, async (req, res) => {
+// @route   POST /api/scorecard
+// @desc    Save a new scorecard report for the logged-in user
+// @access  Private
+router.post('/', auth, async (req, res) => {
   try {
+    // Destructure the fields matching the new Scorecard model and frontend
     const {
       startupName,
-      overallScore,
-      strengths,
-      areasForImprovement,
-      predictionDetails,
-      formDataSnapshot,
-      categoryScores // This is an object with confidence, risk, etc.
+      formData,
+      prediction 
     } = req.body;
 
+    // The user's ID comes from the 'auth' middleware
     const newScorecard = new Scorecard({
-      userId: req.userData.userId,
+      user: req.user.id, // <-- CORRECT: Use 'user' field and get ID from auth middleware
       startupName,
-      overallScore,
-      strengths,
-      areasForImprovement,
-      predictionDetails,
-      formDataSnapshot,
-      categoryScores
+      formData,
+      prediction,
     });
 
     const savedScorecard = await newScorecard.save();
@@ -53,22 +33,24 @@ router.post('/save', checkAuth, async (req, res) => {
 });
 
 
-// @route   GET /api/scorecards/:userId
-// @desc    Get all scorecard reports for a specific user
+// @route   GET /api/scorecard/history
+// @desc    Get all scorecard reports for the logged-in user
 // @access  Private
-router.get('/:userId', checkAuth, async (req, res) => {
+router.get('/history', auth, async (req, res) => {
     try {
-        const scorecards = await Scorecard.find({ userId: req.params.userId }).sort({ createdAt: -1 }); // Sort by newest first
-        
-        if (!scorecards) {
-            return res.status(404).json({ message: 'No scorecards found for this user.' });
-        }
-        
-        res.status(200).json(scorecards);
+      // Find scorecards matching the user ID from the token
+      const scorecards = await Scorecard.find({ user: req.user.id }).sort({ date: -1 }); // Sort by newest first
+      
+      if (!scorecards) {
+        // This case is unlikely, it would just return an empty array, but it's safe to have
+        return res.status(404).json({ message: 'No scorecards found for this user.' });
+      }
+      
+      res.status(200).json(scorecards);
 
     } catch (error) {
-        console.error('Error fetching scorecards:', error);
-        res.status(500).json({ message: 'Failed to fetch scorecards', error: error.message });
+      console.error('Error fetching scorecards:', error);
+      res.status(500).json({ message: 'Failed to fetch scorecards', error: error.message });
     }
 });
 

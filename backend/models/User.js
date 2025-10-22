@@ -40,6 +40,46 @@ const UserSchema = new Schema({
         default: ''
     },
 
+    // --- NEW: Settings Fields (from SettingsPage) ---
+    settings: {
+        theme: {
+            type: String,
+            default: 'dark'
+        },
+        defaultLandingPage: {
+            type: String,
+            default: '/dashboard'
+        },
+        language: {
+            type: String,
+            default: 'en'
+        },
+        emailNewsAlerts: {
+            type: Boolean,
+            default: true
+        },
+        emailProductUpdates: {
+            type: Boolean,
+            default: true
+        },
+        inAppNotifications: {
+            type: Boolean,
+            default: true
+        },
+        twoFactorEnabled: { // Note: Full 2FA requires more backend logic
+            type: Boolean,
+            default: false
+        },
+        newsApiKey: {
+            type: String,
+            default: ''
+        },
+        geminiApiKey: {
+            type: String,
+            default: ''
+        }
+    },
+
     // --- Email Verification Fields ---
     isVerified: {
         type: Boolean,

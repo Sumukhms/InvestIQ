@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios'; // <-- IMPORT AXIOS
 import { AlertCircle, Loader2, TrendingUp, DollarSign, Users, Award, Calendar, Info } from 'lucide-react';
 
 const ScorecardInput = () => {
@@ -37,11 +38,12 @@ const ScorecardInput = () => {
 
   const checkApiHealth = async () => {
     try {
-      const response = await fetch('http://127.0.0.1:5001/health');
-      const data = await response.json();
-      setApiHealth(data);
+      // Using axios for consistency
+      const response = await axios.get('http://127.0.0.1:5001/health');
+      setApiHealth(response.data);
     } catch (err) {
       console.error('API health check failed:', err);
+      setApiHealth({ model_loaded: false }); // Assume offline if check fails
     }
   };
 
@@ -53,11 +55,13 @@ const ScorecardInput = () => {
     }));
   };
 
+  // --- MODIFIED TO SAVE TO BACKEND ---
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
 
+    // Prepare form data for ML model
     const processedFormData = { ...formData };
     const numericFields = [
       'funding_total_usd', 'funding_rounds', 'milestones',
@@ -68,31 +72,57 @@ const ScorecardInput = () => {
     numericFields.forEach(field => {
       if (processedFormData[field]) {
         processedFormData[field] = parseFloat(processedFormData[field]);
+      } else {
+        processedFormData[field] = 0; // Ensure numeric fields are not empty strings
       }
     });
 
     try {
-      const response = await fetch('http://127.0.0.1:5001/predict', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(processedFormData),
-      });
+      // 1. Get prediction from the ML model
+      const mlResponse = await axios.post('http://127.0.0.1:5001/predict', processedFormData);
+      const predictionResult = mlResponse.data;
 
-      if (!response.ok) {
-        const errData = await response.json();
-        throw new Error(errData.error || 'Network response was not ok');
+      // 2. Save the result to your main MERN backend
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          navigate('/login'); // Redirect if not logged in
+          return;
+        }
+        const config = {
+          headers: {
+            'Content-Type': 'application/json',
+            'x-auth-token': token,
+          },
+        };
+
+        const saveData = {
+          startupName: formData.startup_name,
+          formData: processedFormData, // Save the numeric-converted data
+          prediction: predictionResult,
+        };
+        
+        // This is the call to your main database
+        await axios.post('http://localhost:5000/api/scorecard', saveData, config);
+
+      } catch (dbError) {
+        console.error("Failed to save scorecard to database:", dbError);
+        // We can still proceed even if saving fails so the user sees their result
       }
       
-      const result = await response.json();
-      navigate('/results', { state: { prediction: result, formData: formData } });
+      // 3. Navigate to the results page
+      navigate('/results', { state: { prediction: predictionResult, formData: formData } });
+
     } catch (err) {
-      setError(err.message || 'Failed to get prediction.');
+      const errorMessage = err.response?.data?.error || err.message || 'Failed to get prediction.';
+      setError(errorMessage);
       console.error("Prediction API error:", err);
     } finally {
       setIsLoading(false);
     }
   };
 
+  // --- (No changes to JSX, it remains the same) ---
   const inputStyles = "w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all";
   const labelStyles = "block text-sm font-medium text-gray-300 mb-2 flex items-center gap-2";
   const textareaStyles = `${inputStyles} min-h-[100px] resize-y`;
