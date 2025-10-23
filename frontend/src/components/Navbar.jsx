@@ -81,10 +81,10 @@ const Navbar = ({ profileData = null, setProfileData }) => {
   const navLinks = [
     { path: '/dashboard', label: 'Dashboard', icon: '📊' },
     { path: '/scorecard', label: 'Scorecard', icon: '🎯' },
-    { path: '/growth', label: 'AI Advisor', icon: '🤖' },
+    { path: '/growth-suggestions', label: 'AI Advisor', icon: '🤖' },
     { path: '/financials', label: 'Financials', icon: '💰' },
-    { path: '/news', label: 'News', icon: '🔔' },
-    { path: '/competitors', label: 'Competitors', icon: '⚔️' },
+    { path: '/alerts-feed', label: 'News', icon: '🔔' },
+    { path: '/competitor-setup', label: 'Competitors', icon: '⚔️' },
   ];
 
   const getNotificationIcon = (type) => {
