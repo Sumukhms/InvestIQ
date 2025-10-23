@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios'; // <-- IMPORT AXIOS
+import axios from 'axios'; // Using axios as you imported it
 import { AlertCircle, Loader2, TrendingUp, DollarSign, Users, Award, Calendar, Info } from 'lucide-react';
 
 const ScorecardInput = () => {
@@ -28,101 +28,90 @@ const ScorecardInput = () => {
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-  const [apiHealth, setApiHealth] = useState(null);
+  // Removed apiHealth state
   const [showAdvanced, setShowAdvanced] = useState(false);
 
-  // Check API health on mount
-  useEffect(() => {
-    checkApiHealth();
-  }, []);
-
-  const checkApiHealth = async () => {
-    try {
-      // Using axios for consistency
-      const response = await axios.get('http://127.0.0.1:5001/health');
-      setApiHealth(response.data);
-    } catch (err) {
-      console.error('API health check failed:', err);
-      setApiHealth({ model_loaded: false }); // Assume offline if check fails
-    }
-  };
+  // Removed useEffect for API health check
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setFormData(prevState => ({ 
-      ...prevState, 
-      [name]: type === 'checkbox' ? (checked ? 1 : 0) : value 
+    setFormData(prevState => ({
+      ...prevState,
+      [name]: type === 'checkbox' ? (checked ? 1 : 0) : value
     }));
   };
 
-  // --- MODIFIED TO SAVE TO BACKEND ---
+  // ✅ --- THIS IS THE FINAL, CORRECTED handleSubmit ---
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
 
-    // Prepare form data for ML model
+    // 1. Prepare form data (convert numeric fields)
     const processedFormData = { ...formData };
     const numericFields = [
       'funding_total_usd', 'funding_rounds', 'milestones',
       'relationships', 'age_first_milestone_year', 'age_last_milestone_year',
       'avg_participants'
     ];
-    
+
     numericFields.forEach(field => {
-      if (processedFormData[field]) {
+      // Ensure the field exists before attempting to parse
+      if (processedFormData[field] !== undefined && processedFormData[field] !== null && processedFormData[field] !== '') {
         processedFormData[field] = parseFloat(processedFormData[field]);
+        // Handle potential NaN if parsing fails (though parseFloat usually returns NaN for invalid strings)
+         if (isNaN(processedFormData[field])) {
+            console.warn(`Could not parse numeric value for ${field}:`, formData[field]);
+            processedFormData[field] = 0; // Default to 0 if parsing fails
+         }
       } else {
-        processedFormData[field] = 0; // Ensure numeric fields are not empty strings
+        processedFormData[field] = 0; // Default to 0 if empty or null/undefined
       }
     });
 
     try {
-      // 1. Get prediction from the ML model
-      const mlResponse = await axios.post('http://127.0.0.1:5001/predict', processedFormData);
-      const predictionResult = mlResponse.data;
-
-      // 2. Save the result to your main MERN backend
-      try {
-        const token = localStorage.getItem('token');
-        if (!token) {
-          navigate('/login'); // Redirect if not logged in
-          return;
-        }
-        const config = {
-          headers: {
-            'Content-Type': 'application/json',
-            'x-auth-token': token,
-          },
-        };
-
-        const saveData = {
-          startupName: formData.startup_name,
-          formData: processedFormData, // Save the numeric-converted data
-          prediction: predictionResult,
-        };
-        
-        // This is the call to your main database
-        await axios.post('http://localhost:5000/api/scorecard', saveData, config);
-
-      } catch (dbError) {
-        console.error("Failed to save scorecard to database:", dbError);
-        // We can still proceed even if saving fails so the user sees their result
+      // 2. Get auth token
+      const token = localStorage.getItem('token');
+      if (!token) {
+        navigate('/login'); // Redirect if not logged in
+        return;
       }
-      
-      // 3. Navigate to the results page
-      navigate('/results', { state: { prediction: predictionResult, formData: formData } });
+      const config = {
+        headers: {
+          'Content-Type': 'application/json',
+          'x-auth-token': token,
+        },
+      };
+
+      // 3. Send ALL data to the MERN backend (using the proxy)
+      // The backend will call the ML model, save, and create an alert.
+      // Use the relative path '/api/scorecard'
+      const res = await axios.post('/api/scorecard', processedFormData, config);
+
+      // 4. Get the newly saved scorecard (which includes its _id) from the response
+      const newScorecard = res.data;
+
+      // Ensure we received a valid response with an _id
+      if (!newScorecard || !newScorecard._id) {
+          throw new Error('Backend did not return a valid scorecard ID.');
+      }
+
+      // 5. Navigate robustly to the result page with the new ID
+      // This matches your App.jsx route: /scorecard-result/:id
+      navigate(`/scorecard-result/${newScorecard._id}`);
 
     } catch (err) {
-      const errorMessage = err.response?.data?.error || err.message || 'Failed to get prediction.';
+      // Display error message from backend or network error
+      const errorMessage = err.response?.data?.msg || err.message || 'Failed to generate scorecard.';
       setError(errorMessage);
-      console.error("Prediction API error:", err);
+      console.error("Scorecard submission error:", err.response?.data || err);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // --- (No changes to JSX, it remains the same) ---
+
+  // --- (JSX remains the same as your provided code) ---
   const inputStyles = "w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all";
   const labelStyles = "block text-sm font-medium text-gray-300 mb-2 flex items-center gap-2";
   const textareaStyles = `${inputStyles} min-h-[100px] resize-y`;
@@ -131,7 +120,7 @@ const ScorecardInput = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 py-8 px-4">
       <div className="max-w-4xl mx-auto">
-        {/* Header with API Status */}
+        {/* Header - Removed API Status */}
         <div className="mb-6">
           <div className="flex items-center justify-between mb-4">
             <div>
@@ -139,26 +128,11 @@ const ScorecardInput = () => {
                 Instant Startup Scorecard
               </h1>
               <p className="mt-2 text-gray-400">
-                AI-powered success prediction with 92.5% recall • Advanced ensemble model
+                AI-powered success prediction • Based on Crunchbase data insights
               </p>
             </div>
-            {apiHealth && (
-              <div className={`px-3 py-1 rounded-full text-xs font-medium ${
-                apiHealth.model_loaded 
-                  ? 'bg-green-900/50 text-green-400 border border-green-600' 
-                  : 'bg-red-900/50 text-red-400 border border-red-600'
-              }`}>
-                {apiHealth.model_loaded ? '● Model Ready' : '● Model Offline'}
-              </div>
-            )}
+            {/* API health display removed */}
           </div>
-          
-          {apiHealth?.advanced_model && (
-            <div className="bg-blue-900/20 border border-blue-600/30 rounded-lg p-3 text-sm text-blue-300">
-              <Info className="inline w-4 h-4 mr-2" />
-              Using advanced ensemble model with {(apiHealth.optimal_threshold * 100).toFixed(0)}% threshold
-            </div>
-          )}
         </div>
 
         {/* Main Form */}
@@ -187,7 +161,7 @@ const ScorecardInput = () => {
                 </div>
                 <div>
                   <label className={labelStyles}>
-                    Problem Statement
+                    Problem Statement (Optional)
                   </label>
                   <textarea
                     name="problem_statement"
@@ -195,7 +169,6 @@ const ScorecardInput = () => {
                     onChange={handleChange}
                     placeholder="Describe the problem your startup solves..."
                     className={textareaStyles}
-                    required
                   />
                 </div>
                 <div>
@@ -416,7 +389,7 @@ const ScorecardInput = () => {
               >
                 {showAdvanced ? '▼' : '▶'} Advanced Options (Optional)
               </button>
-              
+
               {showAdvanced && (
                 <div className="mt-4 p-4 bg-gray-700/30 rounded-lg border border-gray-600">
                   <p className="text-sm text-gray-400 mb-4">Specify which funding rounds completed:</p>

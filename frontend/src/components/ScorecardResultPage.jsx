@@ -1,10 +1,8 @@
-// Enhanced version - Copy this entire file to replace your existing ScorecardResultPage.jsx
-import React, { useState } from 'react';
-import { useLocation, Link } from 'react-router-dom';
-import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import React, { useState, useEffect } from 'react';
+import { Link, useParams, useNavigate } from 'react-router-dom';
+import axios from 'axios';
+import { Loader2, AlertTriangle } from 'lucide-react';
 
-// Custom Circular Progressbar component to remove external dependency
 const CustomCircularProgressbar = ({ value, text, styles }) => {
   const radius = 45;
   const circumference = 2 * Math.PI * radius;
@@ -47,40 +45,62 @@ const CustomCircularProgressbar = ({ value, text, styles }) => {
   );
 };
 
-
 const ScorecardResultPage = () => {
-  const location = useLocation();
-  const { prediction, formData, isViewingHistory } = location.state || {};
+  const { id } = useParams();
+  const navigate = useNavigate();
 
-  const [isSaved, setIsSaved] = useState(isViewingHistory);
+  const [scorecardData, setScorecardData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  const handleSaveScorecard = () => {
-    const history = JSON.parse(localStorage.getItem('scorecardHistory')) || [];
-    
-    const newEntry = {
-      prediction,
-      formData,
-      date: new Date().toISOString(),
+  useEffect(() => {
+    const fetchScorecard = async () => {
+      setLoading(true);
+      setError('');
+      const token = localStorage.getItem('token');
+      if (!token) {
+        navigate('/login');
+        return;
+      }
+
+      try {
+        const config = {
+          headers: {
+            'x-auth-token': token,
+          },
+        };
+        const res = await axios.get(`/api/scorecard/${id}`, config);
+        
+        // ✅ Log to verify data structure
+        console.log('Fetched scorecard:', res.data);
+        
+        setScorecardData(res.data);
+      } catch (err) {
+        console.error("Failed to fetch scorecard:", err);
+        setError(err.response?.data?.msg || 'Failed to load scorecard data.');
+      } finally {
+        setLoading(false);
+      }
     };
 
-    // A simple check to prevent duplicate saves if the user clicks multiple times
-    const alreadyExists = history.some(
-      item => item.date === newEntry.date && item.formData.startup_name === newEntry.formData.startup_name
-    );
+    fetchScorecard();
+  }, [id, navigate]);
 
-    if (!alreadyExists) {
-      history.unshift(newEntry); // Add new entry to the beginning of the array
-      localStorage.setItem('scorecardHistory', JSON.stringify(history));
-    }
-    
-    setIsSaved(true);
-  };
-
-  if (!prediction || !formData) {
+  if (loading) {
     return (
       <div className="flex flex-col items-center justify-center h-screen bg-gray-900 text-white">
-        <h1 className="text-2xl font-bold mb-4">No Report Data Available</h1>
-        <p className="text-gray-400">Please generate a scorecard or select a report from the dashboard.</p>
+        <Loader2 className="w-12 h-12 animate-spin text-blue-500 mb-4" />
+        <p className="text-xl text-gray-400">Loading Scorecard...</p>
+      </div>
+    );
+  }
+
+  if (error || !scorecardData) {
+    return (
+      <div className="flex flex-col items-center justify-center h-screen bg-gray-900 text-white">
+        <AlertTriangle className="w-12 h-12 text-red-500 mb-4" />
+        <h1 className="text-2xl font-bold mb-4 text-red-400">Error Loading Report</h1>
+        <p className="text-gray-400 text-center mb-6">{error || 'Could not find the requested scorecard.'}</p>
         <Link to="/dashboard" className="mt-6 px-6 py-2 text-lg font-semibold text-white bg-blue-600 rounded-md hover:bg-blue-700">
           Go to Dashboard
         </Link>
@@ -88,88 +108,101 @@ const ScorecardResultPage = () => {
     );
   }
 
-  const overallScore = prediction.success_probability;
-  const isPredictedSuccess = prediction.prediction === 'Success';
-  const confidence = prediction.confidence || 'Medium';
-  const riskLevel = prediction.risk_level || 'Medium';
-  const recommendation = prediction.recommendation || 'Consider this startup for investment';
+  const { prediction, formData } = scorecardData;
 
-  // Determine color scheme based on score
+  if (!prediction || !formData) {
+     return (
+       <div className="flex flex-col items-center justify-center h-screen bg-gray-900 text-white">
+         <AlertTriangle className="w-12 h-12 text-yellow-500 mb-4" />
+         <h1 className="text-2xl font-bold mb-4 text-yellow-400">Incomplete Data</h1>
+         <p className="text-gray-400 text-center mb-6">The scorecard data seems incomplete. Please try generating it again.</p>
+         <Link to="/scorecard" className="mt-6 px-6 py-2 text-lg font-semibold text-white bg-blue-600 rounded-md hover:bg-blue-700">
+           Generate New Scorecard
+         </Link>
+       </div>
+     );
+  }
+
+  // ✅ FIXED: success_probability is already 0-1, multiply by 100 for display
+  const overallScorePercent = (prediction.success_probability || 0) * 100;
+  const isPredictedSuccess = prediction.prediction_label === 'Success';
+
+  // Use data from ML model response
+  const confidence = prediction.confidence || 'Medium';
+  const riskLevel = prediction.risk_level || (overallScorePercent < 50 ? 'High' : (overallScorePercent < 70 ? 'Medium' : 'Low'));
+  const recommendation = prediction.recommendation || (isPredictedSuccess ? 'Favorable outlook, consider for investment.' : 'High risk detected, proceed with caution.');
+
   const getScoreColor = (score) => {
     if (score >= 70) return { bg: 'bg-green-900/20', border: 'border-green-600', text: 'text-green-400', path: '#10B981' };
     if (score >= 50) return { bg: 'bg-yellow-900/20', border: 'border-yellow-600', text: 'text-yellow-400', path: '#F59E0B' };
     return { bg: 'bg-red-900/20', border: 'border-red-600', text: 'text-red-400', path: '#EF4444' };
   };
 
-  const scoreColors = getScoreColor(overallScore);
+  const scoreColors = getScoreColor(overallScorePercent);
 
-  // Generate insights based on form data
   const generateInsights = () => {
-    const insights = {
-      strengths: [],
-      improvements: [],
-      keyMetrics: []
-    };
+     const insights = {
+       strengths: [],
+       improvements: [],
+       keyMetrics: []
+     };
 
-    // Analyze funding
-    if (formData.funding_total_usd > 5000000) {
-      insights.strengths.push('Strong funding base with $' + (formData.funding_total_usd / 1000000).toFixed(1) + 'M raised');
-    } else if (formData.funding_total_usd < 1000000) {
-      insights.improvements.push('Consider raising more capital to accelerate growth');
-    }
+     const fundingM = (formData.funding_total_usd || 0) / 1000000;
+     if (fundingM > 5) {
+       insights.strengths.push(`Strong funding base with $${fundingM.toFixed(1)}M raised`);
+     } else if (fundingM < 1 && formData.funding_rounds > 0) {
+       insights.improvements.push('Consider raising more capital to accelerate growth');
+     } else if (formData.funding_rounds === 0) {
+        insights.improvements.push('Explore seed funding opportunities');
+     }
 
-    // Analyze relationships
-    if (formData.relationships > 20) {
-      insights.strengths.push('Excellent network with ' + formData.relationships + ' key relationships');
-    } else if (formData.relationships < 10) {
-      insights.improvements.push('Build more strategic partnerships and investor relationships');
-    }
+     if (formData.relationships > 20) {
+       insights.strengths.push(`Excellent network with ${formData.relationships} key relationships`);
+     } else if (formData.relationships < 10) {
+       insights.improvements.push('Build more strategic partnerships and advisor relationships');
+     }
 
-    // Analyze milestones
-    if (formData.milestones > 10) {
-      insights.strengths.push('Impressive milestone achievement with ' + formData.milestones + ' completed');
-    } else if (formData.milestones < 5) {
-      insights.improvements.push('Focus on achieving more measurable milestones');
-    }
+     if (formData.milestones > 10) {
+       insights.strengths.push(`Impressive milestone achievement (${formData.milestones} completed)`);
+     } else if (formData.milestones < 5) {
+       insights.improvements.push('Focus on achieving more measurable milestones');
+     }
 
-    // Analyze funding rounds
-    if (formData.funding_rounds >= 3) {
-      insights.strengths.push('Multiple funding rounds demonstrate investor confidence');
-    } else if (formData.funding_rounds === 1) {
-      insights.improvements.push('Consider approaching Series A/B investors for growth capital');
-    }
+     if (formData.funding_rounds >= 3) {
+       insights.strengths.push('Multiple funding rounds demonstrate investor confidence');
+     } else if (formData.funding_rounds === 1) {
+       insights.improvements.push('Consider readiness for the next funding stage (e.g., Series A/B)');
+     }
 
-    // Key metrics
-    insights.keyMetrics.push({
-      label: 'Funding Efficiency',
-      value: formData.funding_rounds > 0 ?
-        '$' + (formData.funding_total_usd / formData.funding_rounds / 1000000).toFixed(2) + 'M/round' :
-        'N/A'
-    });
+     insights.keyMetrics.push({
+       label: 'Funding Efficiency',
+       value: formData.funding_rounds > 0 ?
+         `$${(fundingM / formData.funding_rounds).toFixed(2)}M/round` :
+         'N/A'
+     });
 
-    insights.keyMetrics.push({
-      label: 'Network Strength',
-      value: formData.relationships + ' connections'
-    });
+     insights.keyMetrics.push({
+       label: 'Network Strength',
+       value: `${formData.relationships || 0} connections`
+     });
 
-    insights.keyMetrics.push({
-      label: 'Milestone Velocity',
-      value: formData.milestones > 0 && formData.age_last_milestone_year > 0 ?
-        (formData.milestones / formData.age_last_milestone_year).toFixed(1) + '/year' :
-        'N/A'
-    });
+     insights.keyMetrics.push({
+       label: 'Milestone Velocity',
+       value: formData.milestones > 0 && formData.age_last_milestone_year > 0 ?
+         `${(formData.milestones / formData.age_last_milestone_year).toFixed(1)}/year` :
+         'N/A'
+     });
 
-    // Ensure we have at least some insights
-    if (insights.strengths.length === 0) {
-      insights.strengths.push('Operating in the ' + formData.category_code + ' sector');
-    }
-    if (insights.improvements.length === 0) {
-      insights.improvements.push('Continue building on current momentum');
-    }
+     if (insights.strengths.length === 0) {
+       insights.strengths.push(`Operating in the ${formData.category_code || 'specified'} sector`);
+     }
+     if (insights.improvements.length === 0) {
+       insights.improvements.push('Continue building on current momentum and track key metrics');
+     }
 
-    return insights;
+     return insights;
   };
-
+  
   const insights = generateInsights();
 
   return (
@@ -180,8 +213,8 @@ const ScorecardResultPage = () => {
           <h1 className="text-4xl md:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500 mb-2">
             Startup Analysis Complete
           </h1>
-          <h2 className="text-2xl md:text-3xl font-semibold text-gray-300">{formData.startup_name}</h2>
-          <p className="text-gray-400 mt-2">{formData.category_code} • {formData.problem_statement.substring(0, 100)}...</p>
+          <h2 className="text-2xl md:text-3xl font-semibold text-gray-300">{scorecardData.startupName}</h2>
+          <p className="text-gray-400 mt-2">{formData.category_code || 'N/A'} • {(formData.problem_statement || 'No description').substring(0, 100)}...</p>
         </div>
 
         {/* Main Score Card */}
@@ -192,8 +225,8 @@ const ScorecardResultPage = () => {
               <h3 className="text-lg font-semibold mb-4 text-gray-300">Success Probability</h3>
               <div style={{ width: 180, height: 180 }}>
                 <CustomCircularProgressbar
-                  value={overallScore}
-                  text={`${overallScore.toFixed(1)}%`}
+                  value={overallScorePercent}
+                  text={`${overallScorePercent.toFixed(1)}%`}
                   styles={{
                     textSize: '20px',
                     textColor: '#fff',
@@ -284,51 +317,42 @@ const ScorecardResultPage = () => {
             <div>
               <p className="text-xs text-gray-500 uppercase">Total Funding</p>
               <p className="text-lg font-semibold text-gray-200">
-                ${(formData.funding_total_usd / 1000000).toFixed(2)}M
+                ${((formData.funding_total_usd || 0) / 1000000).toFixed(2)}M
               </p>
             </div>
             <div>
               <p className="text-xs text-gray-500 uppercase">Funding Rounds</p>
-              <p className="text-lg font-semibold text-gray-200">{formData.funding_rounds}</p>
+              <p className="text-lg font-semibold text-gray-200">{formData.funding_rounds || 0}</p>
             </div>
             <div>
               <p className="text-xs text-gray-500 uppercase">Milestones</p>
-              <p className="text-lg font-semibold text-gray-200">{formData.milestones}</p>
+              <p className="text-lg font-semibold text-gray-200">{formData.milestones || 0}</p>
             </div>
             <div>
               <p className="text-xs text-gray-500 uppercase">Network</p>
-              <p className="text-lg font-semibold text-gray-200">{formData.relationships}</p>
+              <p className="text-lg font-semibold text-gray-200">{formData.relationships || 0}</p>
             </div>
           </div>
         </div>
 
         {/* Action Buttons */}
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-8">
-            <Link 
-                to="/dashboard" 
+            <Link
+                to="/dashboard"
                 className="w-full sm:w-auto text-center px-6 py-3 font-semibold text-white bg-gray-700 rounded-lg hover:bg-gray-600 transition-colors"
             >
                 ← Back to Dashboard
             </Link>
-            
-            {!isSaved ? (
-                <button
-                onClick={handleSaveScorecard}
-                className="w-full sm:w-auto px-6 py-3 font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                Save to History
-                </button>
-            ) : (
-                <button
-                disabled
-                className="w-full sm:w-auto px-6 py-3 font-semibold text-gray-400 bg-gray-800 rounded-lg cursor-not-allowed border border-gray-700"
-                >
-                ✓ Saved to History
-                </button>
-            )}
 
-            <Link 
-                to="/" 
+            <button
+               disabled
+               className="w-full sm:w-auto px-6 py-3 font-semibold text-gray-400 bg-gray-800 rounded-lg cursor-not-allowed border border-gray-700"
+             >
+               ✓ Scorecard Saved
+             </button>
+
+            <Link
+                to="/scorecard"
                 className="w-full sm:w-auto text-center px-6 py-3 font-semibold text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors"
             >
                 + Generate New Report
@@ -340,4 +364,3 @@ const ScorecardResultPage = () => {
 };
 
 export default ScorecardResultPage;
-

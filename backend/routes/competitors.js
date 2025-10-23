@@ -1,11 +1,13 @@
 const express = require('express');
 const router = express.Router();
-const axios = require('axios');
-const cheerio = require('cheerio');
 const cors = require('cors');
 const path = require('path');
+const CompetitorReport = require('../models/CompetitorReport');
+const authMiddleware = require('../middleware/auth');
+// ✅ IMPORT the new API helpers
+const { searchGoogleAPI, getCompanyNewsAPI } = require('../utils/apiHelpers');
 
-// Load curated dataset (place file at project-root: /data/startups.json)
+// Load curated dataset
 const curatedPath = path.join(__dirname, '..', 'data', 'startups.json');
 let curatedData = [];
 try {
@@ -16,97 +18,27 @@ try {
 
 router.use(cors());
 
-// -----------------------------
-// DuckDuckGo search helper
-// -----------------------------
-const searchDuckDuckGo = async (query) => {
-  try {
-    const response = await axios.get('https://html.duckduckgo.com/html/', {
-      params: { q: query },
-      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
-      timeout: 8000
-    });
-
-    const $ = cheerio.load(response.data);
-    const results = [];
-
-    $('.result').each((i, el) => {
-      if (i >= 12) return; // limit results
-      const title = $(el).find('.result__title').text().trim();
-      const href = $(el).find('.result__a').attr('href');
-      const snippet = $(el).find('.result__snippet').text().trim();
-
-      if (!href || !title) return;
-      try {
-        const domain = new URL(href).hostname.replace(/^www\./, '');
-        results.push({ title, domain, snippet, url: href });
-      } catch {}
-    });
-
-    return results;
-  } catch (err) {
-    console.error('DuckDuckGo search error:', err.message);
-    return [];
-  }
-};
-
-// -----------------------------
-// Google News RSS helper
-// -----------------------------
-const getCompanyNews = async (companyName) => {
-  try {
-    const rssUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(companyName)}&hl=en&gl=US&ceid=US:en`;
-    const res = await axios.get(rssUrl, { timeout: 5000 });
-    const $ = cheerio.load(res.data, { xmlMode: true });
-    const articles = [];
-    $('item').slice(0, 3).each((i, el) => {
-      const title = $(el).find('title').text();
-      const link = $(el).find('link').text();
-      const pubDate = $(el).find('pubDate').text();
-      const source = $(el).find('source').text();
-      articles.push({ title, url: link, source: source || 'Google News', publishedAt: pubDate });
-    });
-    return articles;
-  } catch (err) {
-    return [];
-  }
-};
-
-// -----------------------------
-// Utilities: match curated dataset
-// -----------------------------
+// --- (Keep all the helper functions: normalize, findCuratedMatches, mergeWithCurated, extractCompaniesFromResults) ---
 const normalize = (s) => (s || '').toString().toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 
 const findCuratedMatches = (industry, location) => {
-  // match by industry + city OR industry + country
   const inIndustry = curatedData.filter(c => normalize(c.industry) === normalize(industry));
   if (!inIndustry.length) return [];
-
   const byCity = inIndustry.filter(c => normalize(c.location?.city || '') === normalize(location));
   if (byCity.length) return byCity;
-
   const byCountry = inIndustry.filter(c => normalize(c.location?.country || '') === normalize(location));
   if (byCountry.length) return byCountry;
-
-  // broader fallback: return top few in industry
   return inIndustry.slice(0, 6);
 };
 
-// Merge live result with curated if possible
 const mergeWithCurated = (live, industry, location) => {
-  // Try to match by domain first, then by name similarity
   const domainMatch = curatedData.find(c => c.domain && live.domain && normalize(c.domain) === normalize(live.domain));
   if (domainMatch) return { ...domainMatch, description: live.snippet || domainMatch.description };
-
   const titleName = live.title.split('-')[0].split('|')[0].trim();
   const nameMatch = curatedData.find(c => normalize(c.name) === normalize(titleName));
   if (nameMatch) return { ...nameMatch, description: live.snippet || nameMatch.description };
-
-  // fuzzy partial match: name contains curated name or vice versa
   const partial = curatedData.find(c => normalize(titleName).includes(normalize(c.name)) || normalize(c.name).includes(normalize(titleName)));
   if (partial) return { ...partial, description: live.snippet || partial.description };
-
-  // else convert live into structured placeholder
   return {
     name: titleName || live.domain,
     domain: live.domain,
@@ -121,13 +53,9 @@ const mergeWithCurated = (live, industry, location) => {
   };
 };
 
-// -----------------------------
-// extract companies from DuckDuckGo
-// -----------------------------
 const extractCompaniesFromResults = (results, industry, location) => {
   const companies = [];
   const seen = new Set();
-
   results.forEach(r => {
     if (!r.domain) return;
     if (seen.has(r.domain)) return;
@@ -135,23 +63,27 @@ const extractCompaniesFromResults = (results, industry, location) => {
     const merged = mergeWithCurated(r, industry, location);
     companies.push(merged);
   });
-
   return companies;
 };
+// --- (End of helper functions) ---
+
 
 // -----------------------------
-// Main finder: live + curated fallback
+// ✅ UPDATED: Main finder: live + curated fallback
 // -----------------------------
 const findCompetitors = async (industry, location) => {
+  // ✅ CHANGED: More targeted queries
   const queries = [
-    `top ${industry} companies in ${location}`,
-    `best ${industry} startups ${location}`,
-    `${industry} companies ${location}`
+    `${industry} companies in ${location} site:linkedin.com/company`,
+    `${industry} startups in ${location} site:crunchbase.com/organization`,
+    `${industry} companies ${location} site:tracxn.com`,
+    `${industry} startups ${location} site:yourstory.com/companies`
   ];
 
   let liveCompanies = [];
   for (const q of queries) {
-    const results = await searchDuckDuckGo(q);
+    // ✅ CHANGED: Use new searchGoogleAPI function
+    const results = await searchGoogleAPI(q); 
     if (results.length) {
       const extracted = extractCompaniesFromResults(results, industry, location);
       extracted.forEach(c => {
@@ -160,7 +92,6 @@ const findCompetitors = async (industry, location) => {
         }
       });
     }
-    await new Promise(r => setTimeout(r, 350));
     if (liveCompanies.length >= 8) break;
   }
 
@@ -173,7 +104,8 @@ const findCompetitors = async (industry, location) => {
   // Enrich with curated fields where possible and add news for top results
   const enriched = await Promise.all(liveCompanies.slice(0, 10).map(async (c, idx) => {
     // add news (only for top 5 to speed up)
-    const news = idx < 5 ? await getCompanyNews(c.name || c.domain) : [];
+    // ✅ CHANGED: Use new getCompanyNewsAPI function
+    const news = idx < 5 ? await getCompanyNewsAPI(c.name || c.domain) : [];
     return {
       name: c.name,
       domain: c.domain,
@@ -206,14 +138,12 @@ const findCompetitors = async (industry, location) => {
       news: [],
       lastUpdated: new Date().toISOString()
     }));
-    // merge without duplicates
     extra.forEach(e => {
       if (!enriched.find(x => normalize(x.domain) === normalize(e.domain) || normalize(x.name) === normalize(e.name))) {
         enriched.push(e);
       }
     });
   }
-
   return enriched.slice(0, 10);
 };
 
@@ -225,13 +155,95 @@ router.get('/search', async (req, res) => {
   if (!industry || !location) {
     return res.status(400).json({ error: 'Both industry and location are required.' });
   }
-
   try {
     const results = await findCompetitors(industry, location);
     res.json(results);
   } catch (err) {
     console.error('Search error:', err);
-    res.status(500).json({ error: 'Server error', message: err.message });
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// ✅ NEW: Refresh a single watchlist item
+router.post('/refresh/:reportId', authMiddleware, async (req, res) => {
+  try {
+    const report = await CompetitorReport.findOne({
+      _id: req.params.reportId,
+      userId: req.user.id
+    });
+
+    if (!report) {
+      return res.status(404).json({ error: 'Report not found.' });
+    }
+
+    const companyName = report.competitorData.name;
+    const freshNews = await getCompanyNewsAPI(companyName);
+
+    report.competitorData.news = freshNews;
+    report.lastUpdated = new Date();
+    await report.save();
+
+    res.json(report);
+  } catch (err) {
+    console.error('Error refreshing competitor:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// ✅ Get user's watchlist
+router.get('/watchlist', authMiddleware, async (req, res) => {
+  try {
+    const watchlist = await CompetitorReport.find({ userId: req.user.id })
+                                            .sort({ createdAt: -1 });
+    res.json(watchlist);
+  } catch (err) {
+    console.error('Error fetching watchlist:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// ✅ Add a competitor to the watchlist
+router.post('/watch', authMiddleware, async (req, res) => {
+  const { competitor } = req.body;
+  if (!competitor || !competitor.name) {
+    return res.status(400).json({ error: 'Competitor data is required.' });
+  }
+  try {
+    const existing = await CompetitorReport.findOne({ 
+      userId: req.user.id,
+      'competitorData.name': competitor.name 
+    });
+    if (existing) {
+      return res.status(409).json({ error: 'Competitor already in watchlist.' });
+    }
+    const newReport = new CompetitorReport({
+      userId: req.user.id,
+      competitorName: competitor.name,
+      competitorData: competitor
+    });
+    await newReport.save();
+    res.status(201).json(newReport);
+  } catch (err) {
+    console.error('Error saving to watchlist:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// ✅ Remove from watchlist
+router.delete('/watch/:reportId', authMiddleware, async (req, res) => {
+  try {
+    const report = await CompetitorReport.findOne({
+      _id: req.params.reportId,
+      userId: req.user.id
+    });
+    if (!report) {
+      return res.status(404).json({ error: 'Report not found.' });
+    }
+    await CompetitorReport.deleteOne({ _id: req.params.reportId, userId: req.user.id });
+    res.json({ msg: 'Competitor removed' });
+  } catch (err) {
+    console.error('Error removing from watchlist:', err);
+    res.status(500).json({ error: 'Server error' });
   }
 });
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, NavLink, useNavigate, useLocation } from 'react-router-dom';
 
 // The component receives both profileData and setProfileData from App.jsx
@@ -7,16 +7,57 @@ const Navbar = ({ profileData = null, setProfileData }) => {
   const [isNotificationsOpen, setNotificationsOpen] = useState(false);
   const [isMobileMenuOpen, setMobileMenuOpen] = useState(false);
   
+  // ✅ STATES for real notifications
   const [notifications, setNotifications] = useState([]);
-  const [unreadNotifications, setUnreadNotifications] = useState(0);
   
   const navigate = useNavigate();
   const location = useLocation();
   const dropdownRef = useRef(null);
   const notificationRef = useRef(null);
 
+  // ✅ NEW: Helper to format time
+  const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
+    try {
+      const date = new Date(dateString);
+      const now = new Date();
+      const diffTime = Math.abs(now - date);
+      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+      const diffHours = Math.floor(diffTime / (1000 * 60 * 60));
+      const diffMinutes = Math.floor(diffTime / (1000 * 60));
+
+      if (diffMinutes < 1) return 'Just now';
+      if (diffMinutes < 60) return `${diffMinutes}m ago`;
+      if (diffHours < 24) return `${diffHours}h ago`;
+      if (diffDays === 1) return 'Yesterday';
+      return `${diffDays} days ago`;
+    } catch {
+      return dateString;
+    }
+  };
+
+  // ✅ NEW: Fetches real notifications from the API
+  const fetchNotifications = async () => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    try {
+      const res = await fetch('/api/alerts', {
+        headers: { 'x-auth-token': token }
+      });
+      if (res.ok) {
+        setNotifications(await res.json());
+      }
+    } catch (err) {
+      console.error("Failed to fetch notifications", err);
+    }
+  };
+
   useEffect(() => {
-    loadNotifications();
+    // Fetch notifications on component mount
+    fetchNotifications();
+
+    // Optional: Refresh notifications every 2 minutes
+    const interval = setInterval(fetchNotifications, 2 * 60 * 1000);
     
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -28,25 +69,15 @@ const Navbar = ({ profileData = null, setProfileData }) => {
     };
 
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      clearInterval(interval); // Clear interval on unmount
+    };
   }, []);
-
-  const loadNotifications = () => {
-    const mockNotifications = [
-      { id: 1, type: 'success', message: 'Your startup scorecard achieved 87% success probability!', time: '5 min ago', read: false },
-      { id: 2, type: 'warning', message: 'Cash runway below 6 months - review financials', time: '1 hour ago', read: false },
-      { id: 3, type: 'info', message: 'New competitor analysis available', time: '3 hours ago', read: true },
-      { id: 4, type: 'success', message: 'Growth advice consultation saved successfully', time: '1 day ago', read: true },
-    ];
-    
-    setNotifications(mockNotifications);
-    setUnreadNotifications(mockNotifications.filter(n => !n.read).length);
-  };
 
   const handleLogout = () => {
     if (window.confirm('Are you sure you want to logout?')) {
       localStorage.removeItem('token');
-      // Clear profile data in parent component
       if (setProfileData) {
         setProfileData(null);
       }
@@ -54,16 +85,39 @@ const Navbar = ({ profileData = null, setProfileData }) => {
     }
   };
 
-  const markNotificationAsRead = (id) => {
-    setNotifications(prev => 
-      prev.map(n => n.id === id ? { ...n, read: true } : n)
-    );
-    setUnreadNotifications(prev => Math.max(0, prev - 1));
+  // ✅ NEW: Handles opening the bell and marking alerts as read
+  const handleNotificationsOpen = async () => {
+    const newIsOpen = !isNotificationsOpen;
+    setNotificationsOpen(newIsOpen);
+
+    // If we are opening the panel and there are unread alerts
+    if (newIsOpen && unreadCount > 0) {
+      const token = localStorage.getItem('token');
+      try {
+        await fetch('/api/alerts/markread', {
+          method: 'POST',
+          headers: { 'x-auth-token': token }
+        });
+        // Update state to reflect alerts are read
+        setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+      } catch (err) {
+        console.error("Failed to mark alerts as read", err);
+      }
+    }
+  };
+  
+  // ✅ NEW: Handles clicking a single alert
+  const handleAlertClick = (alert) => {
+    setNotificationsOpen(false);
+    navigate(alert.link);
+    // Note: We already mark all as read when opening, but you could
+    // add single-read logic here if preferred.
   };
 
   const clearAllNotifications = () => {
+    // This should ideally be a DELETE API call,
+    // but for now, we'll just clear from state.
     setNotifications([]);
-    setUnreadNotifications(0);
   };
 
   const getInitials = (name) => {
@@ -86,13 +140,17 @@ const Navbar = ({ profileData = null, setProfileData }) => {
     { path: '/alerts-feed', label: 'News', icon: '🔔' },
     { path: '/competitor-setup', label: 'Competitors', icon: '⚔️' },
   ];
+  
+  // ✅ NEW: Use real notification data
+  const unreadCount = notifications.filter(n => !n.read).length;
 
+  // (Notification icons and colors remain the same as your provided code)
   const getNotificationIcon = (type) => {
     switch (type) {
       case 'success': return '✅';
       case 'warning': return '⚠️';
       case 'error': return '❌';
-      default: return 'ℹ️';
+      default: return 'ℹ️'; // Default for info or competitor alerts
     }
   };
 
@@ -142,13 +200,13 @@ const Navbar = ({ profileData = null, setProfileData }) => {
             {/* Notifications */}
             <div className="relative" ref={notificationRef}>
               <button
-                onClick={() => setNotificationsOpen(!isNotificationsOpen)}
+                onClick={handleNotificationsOpen} // ✅ UPDATED handler
                 className="relative p-2 text-gray-300 hover:text-white hover:bg-gray-700 rounded-lg transition-colors"
               >
                 <span className="text-xl">🔔</span>
-                {unreadNotifications > 0 && (
+                {unreadCount > 0 && ( // ✅ UPDATED to use unreadCount
                   <span className="absolute top-1 right-1 w-5 h-5 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
-                    {unreadNotifications}
+                    {unreadCount}
                   </span>
                 )}
               </button>
@@ -175,13 +233,14 @@ const Navbar = ({ profileData = null, setProfileData }) => {
                     </div>
                   ) : (
                     <div className="divide-y divide-gray-700">
+                      {/* ✅ UPDATED: Map over real notification data */}
                       {notifications.map(notification => (
                         <div
-                          key={notification.id}
+                          key={notification._id} // Use _id from MongoDB
                           className={`p-4 hover:bg-gray-700/50 cursor-pointer transition-colors border-l-4 ${getNotificationColor(notification.type)} ${
                             !notification.read ? 'bg-gray-700/30' : ''
                           }`}
-                          onClick={() => markNotificationAsRead(notification.id)}
+                          onClick={() => handleAlertClick(notification)} // ✅ UPDATED handler
                         >
                           <div className="flex items-start gap-3">
                             <span className="text-xl flex-shrink-0">
@@ -192,7 +251,7 @@ const Navbar = ({ profileData = null, setProfileData }) => {
                                 {notification.message}
                               </p>
                               <p className="text-xs text-gray-500 mt-1">
-                                {notification.time}
+                                {formatDate(notification.createdAt)} {/* ✅ Use formatDate */}
                               </p>
                             </div>
                             {!notification.read && (

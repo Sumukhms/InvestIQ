@@ -7,8 +7,19 @@ const axios = require('axios');
 const mongoose = require('mongoose');
 const passport = require('passport');
 const session = require('express-session');
-const Scorecard = require('./models/Scorecard'); // <-- IMPORT THE SCORECARD MODEL
+
+// --- MODEL IMPORTS ---
+const Scorecard = require('./models/Scorecard');
 const Prediction = require('./models/Prediction');
+// ✅ NEW: Added models needed for the watchdog
+const CompetitorReport = require('./models/CompetitorReport');
+const Alert = require('./models/Alert');
+
+// ✅ NEW: Import cron and the shared API helper
+const cron = require('node-cron');
+// We assume you created 'utils/apiHelpers.js' as per the previous step
+const { getCompanyNewsAPI } = require('./utils/apiHelpers'); 
+
 // --- For Debugging: Let's check if the keys are loaded ---
 console.log('SENDGRID_API_KEY loaded:', !!process.env.SENDGRID_API_KEY);
 console.log('EMAIL_USER loaded:', process.env.EMAIL_USER);
@@ -33,6 +44,51 @@ app.use(session({ secret: 'some_session_secret', resave: false, saveUninitialize
 app.use(passport.initialize());
 app.use(passport.session());
 
+// ---------------------------------------------------------
+// ✅ NEW: Background Watchdog Function
+// ---------------------------------------------------------
+async function runCompetitorWatchdog() {
+  console.log('Running Competitor Watchdog...');
+  try {
+    // 1. Get all competitors from all users
+    const allReports = await CompetitorReport.find({});
+
+    for (const report of allReports) {
+      // 2. Get fresh news for each one
+      const companyName = report.competitorData.name;
+      const freshNews = await getCompanyNewsAPI(companyName);
+      const oldNews = report.competitorData.news || [];
+
+      // 3. Compare new news with old news (by title)
+      const newArticles = freshNews.filter(fresh => 
+        !oldNews.some(old => old.title === fresh.title)
+      );
+
+      // 4. If new news exists, create an alert and update the report
+      if (newArticles.length > 0) {
+        console.log(`Found ${newArticles.length} new articles for ${companyName} (User: ${report.userId})`);
+        
+        // 5. Create the alert for the user
+        await new Alert({
+          userId: report.userId,
+          message: `Found ${newArticles.length} new news article(s) for ${companyName}.`,
+          link: '/competitors'
+        }).save();
+
+        // 6. Update the report with the new news
+        report.competitorData.news = freshNews;
+        report.lastUpdated = new Date();
+        await report.save();
+      }
+    }
+  } catch (err) {
+    console.error('Error during competitor watchdog run:', err);
+  }
+  console.log('Competitor Watchdog finished.');
+}
+// ---------------------------------------------------------
+
+
 // --- Define Routes ---
 const newsRoutes = require('./routes/news');
 const fundingRoutes = require('./routes/funding');
@@ -45,10 +101,14 @@ app.use('/api/auth', require('./routes/auth'));
 app.use('/api/news', newsRoutes);
 app.use('/api/funding', fundingRoutes);
 app.use('/api/competitors', competitorsRoute); 
-// --- FIX: Changed '/api/scorecards' to '/api/scorecard' to match the frontend call ---
 app.use('/api/scorecard', scorecardRoutes); 
 app.use('/api/settings', settingsRoutes);
 app.use('/api/chatbot', chatbotRoutes);
+// ✅ NEW: Register the alerts route
+app.use('/api/alerts', require('./routes/alerts'));
+
+
+// --- One-off API Routes ---
 
 app.post('/api/growth-suggestions', async (req, res) => {
     const { industry, stage, idea } = req.body;
@@ -58,7 +118,6 @@ app.post('/api/growth-suggestions', async (req, res) => {
     }
 
     const API_KEY = process.env.GOOGLE_API_KEY;
-    // --- FIX 1: Updated the model name in the endpoint ---
     const AI_API_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`;
 
     if (!API_KEY) {
@@ -82,7 +141,6 @@ app.post('/api/growth-suggestions', async (req, res) => {
     }
   `;
 
-    // gemini-2.5-flash DOES support response_mime_type, so we can add it back
     const requestBody = {
         contents: [{ parts: [{ text: prompt }] }],
         generationConfig: {
@@ -96,8 +154,6 @@ app.post('/api/growth-suggestions', async (req, res) => {
             headers: { 'Content-Type': 'application/json' }
         });
 
-        // --- FIX 2: Clean the response string before parsing ---
-        // The model might still return ```json\n{...}\n```, so we clean it.
         const rawResponse = response.data.candidates[0].content.parts[0].text;
         const cleanedResponse = rawResponse.replace(/```json\n|```/g, '').trim();
 
@@ -115,10 +171,8 @@ app.post('/api/growth-suggestions', async (req, res) => {
 // Test route to create a new scorecard
 app.post('/api/scorecards', async (req, res) => {
   try {
-    // Create a new scorecard instance with sample data
-    // In a real application, this data would come from req.body
     const newScorecard = new Scorecard({
-      userId: new mongoose.Types.ObjectId(), // Using a dummy ObjectId for testing
+      userId: new mongoose.Types.ObjectId(), 
       startupName: 'Test Startup',
       overallScore: 85,
       categoryScores: {
@@ -131,10 +185,7 @@ app.post('/api/scorecards', async (req, res) => {
       areasForImprovement: ['Needs more marketing'],
     });
 
-    // Save the new scorecard to the database
     const savedScorecard = await newScorecard.save();
-    
-    // Send the saved data back as a response
     res.status(201).json(savedScorecard);
     console.log('Successfully created a test scorecard!');
 
@@ -148,8 +199,12 @@ app.post('/api/predict-and-save', async (req, res) => {
     const { startupData, userId } = req.body; // Assuming you send userId from the frontend
 
     try {
+        // ✅ FIX: Use an environment variable for the ML service URL
+        // This fixes the hard-coded 'localhost' flaw
+        const ML_API_URL = process.env.ML_API_URL || 'http://localhost:5001/predict';
+
         // 1. Call the Python ML Service
-        const mlResponse = await axios.post('http://localhost:5001/predict', startupData);
+        const mlResponse = await axios.post(ML_API_URL, startupData);
         const predictionData = mlResponse.data;
 
         // 2. Save the prediction to the database
@@ -173,4 +228,14 @@ app.post('/api/predict-and-save', async (req, res) => {
 // --- Start Server ---
 app.listen(port, () => {
   console.log(`InvestIQ MERN Backend is running on port: ${port}`);
+
+  // ✅ NEW: Schedule the background job
+  // This runs at 3:00 AM every day.
+  cron.schedule('0 3 * * *', () => {
+    runCompetitorWatchdog();
+  }, {
+    timezone: "Asia/Kolkata" // Set this to your server's timezone
+  });
+
+  console.log('Competitor watchdog scheduled to run daily at 3:00 AM.');
 });

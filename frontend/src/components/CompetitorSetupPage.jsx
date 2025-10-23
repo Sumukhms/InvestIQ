@@ -9,11 +9,26 @@ const CompetitorSetupPage = () => {
   const [error, setError] = useState('');
   const [showWatchlist, setShowWatchlist] = useState(false);
   const [selectedCompetitor, setSelectedCompetitor] = useState(null);
+  const [refreshing, setRefreshing] = useState(null); // Tracks which report is refreshing
 
-  // Load watchlist from memory (in production, use backend)
+  // Load watchlist from backend
   useEffect(() => {
-    const mockWatchlist = [];
-    setWatchlist(mockWatchlist);
+    const fetchWatchlist = async () => {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+      try {
+        const res = await fetch('/api/competitors/watchlist', { // ✅ FIXED: Relative URL
+          headers: { 'x-auth-token': token }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setWatchlist(data);
+        }
+      } catch (err) {
+        console.error('Error fetching watchlist', err);
+      }
+    };
+    fetchWatchlist();
   }, []);
 
   const handleInputChange = (e) => {
@@ -29,7 +44,7 @@ const CompetitorSetupPage = () => {
 
     try {
       const params = new URLSearchParams(searchQuery).toString();
-      const response = await fetch(`http://localhost:5000/api/competitors/search?${params}`);
+      const response = await fetch(`/api/competitors/search?${params}`); // ✅ FIXED: Relative URL
       
       if (!response.ok) {
         throw new Error('Failed to fetch data. Is the backend running?');
@@ -50,21 +65,72 @@ const CompetitorSetupPage = () => {
     }
   };
 
-  const addToWatchlist = (competitor) => {
-    if (!watchlist.some(c => c.name === competitor.name)) {
-      setWatchlist(prev => [...prev, { ...competitor, addedDate: new Date().toISOString() }]);
-    } else {
+  // ✅ UPDATED: Calls backend API
+  const addToWatchlist = async (competitor) => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      alert('You must be logged in to add to the watchlist.');
+      return;
+    }
+
+    if (watchlist.some(c => c.competitorData.name === competitor.name)) {
       alert(`${competitor.name} is already on your watchlist.`);
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/competitors/watch', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-auth-token': token
+        },
+        body: JSON.stringify({ competitor })
+      });
+
+      if (res.status === 409) {
+        alert('Competitor already in watchlist.');
+        return;
+      }
+      
+      if (!res.ok) {
+        throw new Error('Failed to add to watchlist');
+      }
+
+      const newReport = await res.json();
+      setWatchlist(prev => [newReport, ...prev]);
+
+    } catch (err) {
+      alert(`Error: ${err.message}`);
     }
   };
 
-  const removeFromWatchlist = (competitorName) => {
+  // ✅ UPDATED: Calls backend API
+  const removeFromWatchlist = async (reportId, competitorName) => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+
     if (window.confirm(`Remove ${competitorName} from watchlist?`)) {
-      setWatchlist(prev => prev.filter(c => c.name !== competitorName));
+      try {
+        const res = await fetch(`/api/competitors/watch/${reportId}`, {
+          method: 'DELETE',
+          headers: { 'x-auth-token': token }
+        });
+
+        if (!res.ok) {
+          throw new Error('Failed to remove');
+        }
+        
+        setWatchlist(prev => prev.filter(c => c._id !== reportId));
+
+      } catch (err) {
+        alert(`Error: ${err.message}`);
+      }
     }
   };
 
   const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
     try {
       const date = new Date(dateString);
       const now = new Date();
@@ -78,6 +144,38 @@ const CompetitorSetupPage = () => {
       return `${Math.floor(diffDays / 30)} months ago`;
     } catch {
       return dateString;
+    }
+  };
+
+  // ✅ NEW: On-demand refresh handler
+  const handleRefresh = async (reportId) => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+
+    setRefreshing(reportId); // Set loading state for this specific item
+    try {
+      const res = await fetch(`/api/competitors/refresh/${reportId}`, {
+        method: 'POST',
+        headers: { 'x-auth-token': token }
+      });
+
+      if (!res.ok) {
+        throw new Error('Failed to refresh');
+      }
+
+      const updatedReport = await res.json();
+      
+      // Update the watchlist state with the new report data
+      setWatchlist(prev => 
+        prev.map(report => 
+          report._id === reportId ? updatedReport : report
+        )
+      );
+
+    } catch (err) {
+      alert(`Error refreshing: ${err.message}`);
+    } finally {
+      setRefreshing(null); // Clear loading state
     }
   };
 
@@ -100,7 +198,7 @@ const CompetitorSetupPage = () => {
     setError('');
     setResults([]);
 
-    fetch(`http://localhost:5000/api/competitors/search?${params}`)
+    fetch(`/api/competitors/search?${params}`) // ✅ FIXED: Relative URL
       .then(res => res.json())
       .then(data => {
         if (data.message) {
@@ -135,7 +233,7 @@ const CompetitorSetupPage = () => {
           </div>
         </div>
 
-        {/* Watchlist Panel */}
+        {/* ✅ UPDATED: Watchlist Panel */}
         {showWatchlist && (
           <div className={`${cardStyles} p-6 mb-8 border-l-4 border-blue-500`}>
             <h2 className="text-2xl font-bold text-white mb-4">Your Watchlist</h2>
@@ -147,33 +245,46 @@ const CompetitorSetupPage = () => {
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {watchlist.map(comp => (
-                  <div key={comp.name} className="bg-gray-700 p-4 rounded-lg border border-gray-600 hover:border-blue-500 transition-all">
+                {watchlist.map(report => (
+                  <div key={report._id} className="bg-gray-700 p-4 rounded-lg border border-gray-600 hover:border-blue-500 transition-all">
                     <div className="flex items-start justify-between mb-2">
-                      <div className="flex-1">
-                        <h3 className="font-bold text-white text-lg">{comp.name}</h3>
+                      <div className="flex-1 mr-2">
+                        <h3 className="font-bold text-white text-lg">{report.competitorData.name}</h3>
                         <a 
-                          href={`https://${comp.domain}`} 
+                          href={`https://${report.competitorData.domain}`} 
                           target="_blank" 
                           rel="noopener noreferrer"
                           className="text-blue-400 hover:text-blue-300 text-sm"
                         >
-                          {comp.domain}
+                          {report.competitorData.domain}
                         </a>
                       </div>
-                      <button
-                        onClick={() => removeFromWatchlist(comp.name)}
-                        className="text-red-400 hover:text-red-300 text-2xl leading-none"
-                        title="Remove from watchlist"
-                      >
-                        ×
-                      </button>
+                      {/* ✅ NEW: Action Buttons Div */}
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <button
+                          onClick={() => handleRefresh(report._id)}
+                          disabled={refreshing === report._id}
+                          className={`text-xl p-1 rounded-full ${refreshing === report._id ? 'opacity-50 animate-spin' : 'hover:bg-gray-600'}`}
+                          title="Refresh news"
+                        >
+                          🔄
+                        </button>
+                        <button
+                          onClick={() => removeFromWatchlist(report._id, report.competitorData.name)}
+                          className="text-red-400 hover:text-red-300 text-2xl leading-none"
+                          title="Remove from watchlist"
+                        >
+                          ×
+                        </button>
+                      </div>
                     </div>
-                    {comp.description && (
-                      <p className="text-sm text-gray-400 mt-2 line-clamp-2">{comp.description}</p>
+                    {report.competitorData.description && (
+                      <p className="text-sm text-gray-400 mt-2 line-clamp-2">{report.competitorData.description}</p>
                     )}
-                    <div className="mt-3 flex items-center gap-2 text-xs text-gray-500">
-                      <span>📅 Added {formatDate(comp.addedDate)}</span>
+                    {/* ✅ NEW: Added last refresh time */}
+                    <div className="mt-3 flex items-center justify-between text-xs text-gray-500">
+                      <span>📅 Added {formatDate(report.createdAt)}</span>
+                      <span>🔄 Last: {formatDate(report.lastUpdated)}</span>
                     </div>
                   </div>
                 ))}
