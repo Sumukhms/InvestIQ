@@ -6,6 +6,7 @@ const passport = require('passport');
 const crypto = require('crypto');
 const User = require('../models/User');
 const sendEmail = require('../utils/sendEmail');
+const auth = require('../middleware/auth');
 
 // --- EMAIL & PASSWORD AUTHENTICATION ---
 
@@ -178,5 +179,57 @@ router.get('/google/callback',
         res.redirect(`http://localhost:5173/auth/success?token=${token}`);
     }
 );
+
+// @route   GET api/auth/profile
+// @desc    Get the current user's profile
+// @access  Private
+router.get('/profile', auth, async (req, res) => {
+  try {
+    // The user ID is attached to req.user from the auth middleware's token payload
+    const user = await User.findById(req.user.id).select('-password');
+    if (!user) {
+        return res.status(404).json({ msg: 'User not found' });
+    }
+    res.json(user);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
+});
+
+// @route   PUT api/auth/profile
+// @desc    Update the current user's profile
+// @access  Private
+router.put('/profile', auth, async (req, res) => {
+  // Destructure all the fields from the request body that can be updated
+  const { name, role, company, bio, avatar } = req.body;
+
+  const profileFields = {};
+  if (name) profileFields.name = name;
+  if (role) profileFields.role = role;
+  if (company) profileFields.company = company;
+  if (bio) profileFields.bio = bio;
+  if (avatar) profileFields.avatar = avatar; // Save the base64 avatar string
+
+  try {
+    let user = await User.findById(req.user.id);
+
+    if (!user) {
+      return res.status(404).json({ msg: 'User not found' });
+    }
+
+    // Find the user by ID and update their profile with the new fields
+    user = await User.findByIdAndUpdate(
+      req.user.id,
+      { $set: profileFields },
+      { new: true } // This option returns the updated document
+    ).select('-password'); // Exclude the password from the returned object
+
+    res.json(user); // Send back the updated user profile
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
+});
 
 module.exports = router;
