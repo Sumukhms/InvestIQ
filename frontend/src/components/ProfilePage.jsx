@@ -1,9 +1,9 @@
 // frontend/src/components/ProfilePage.jsx
-// Enhanced with modern UI, avatar upload, and fully dynamic API-driven stats
+// Fixed: Proper handling of profileData prop to ensure accountAge displays correctly
 
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { useNavigate } from 'react-router-dom'; // Import useNavigate
+import { useNavigate } from 'react-router-dom';
 
 const ProfilePage = ({ profileData, setProfileData }) => {
   const [localProfileData, setLocalProfileData] = useState({
@@ -12,7 +12,8 @@ const ProfilePage = ({ profileData, setProfileData }) => {
     role: '',
     company: '',
     bio: '',
-    avatar: ''
+    avatar: '',
+    createdAt: null
   });
 
   const [isLoading, setIsLoading] = useState(true);
@@ -20,117 +21,95 @@ const ProfilePage = ({ profileData, setProfileData }) => {
   const [activeTab, setActiveTab] = useState('profile');
   const [showSuccess, setShowSuccess] = useState(false);
   const [avatarPreview, setAvatarPreview] = useState(null);
-  const navigate = useNavigate(); // Initialize navigate
+  const navigate = useNavigate();
 
-  // User statistics - will be loaded from the backend
   const [userStats, setUserStats] = useState({
     scorecardsGenerated: 0,
     financialReports: 0,
     growthAdvice: 0,
     watchedCompetitors: 0,
-    accountAge: 0
   });
+  
+  const [accountAge, setAccountAge] = useState(0);
 
+  // ✅ FIX: Single useEffect that waits for BOTH profileData AND stats
   useEffect(() => {
-    // If profileData prop is not available, fetch it
-    // The fetchProfile function will now also trigger loadUserStats
-    if (!profileData) {
-      fetchProfile();
-    } else {
-      // If prop *is* available, use it
-      initializeProfile(profileData);
-    }
-  }, [profileData]); // Re-run if the prop changes
-
-  // Helper to set profile from prop or fetch
-  const initializeProfile = (data) => {
-    const profile = {
-      name: data.name || '',
-      email: data.email || '',
-      role: data.role || '',
-      company: data.company || '',
-      bio: data.bio || '',
-      avatar: data.avatar || '',
-      date: data.date || null // Make sure to get the creation date
-    };
-    setLocalProfileData(profile);
-    if (data.avatar) {
-      setAvatarPreview(data.avatar);
-    }
-    // Load stats using the fetched profile's creation date
-    loadUserStats(profile.date); 
-    setIsLoading(false);
-  };
-
-  const fetchProfile = async () => {
-    const token = localStorage.getItem('token');
-    if (!token) {
-      console.error("No token found, user is not logged in.");
-      setIsLoading(false);
-      return;
-    }
-
-    try {
-      const config = {
-        headers: { 'x-auth-token': token }
-      };
-      // ✅ Use relative path for API call
-      const res = await axios.get('/api/auth/profile', config);
-
-      const fetchedData = res.data;
-
-      // Pass the full fetched data to the initializer
-      initializeProfile(fetchedData);
+    const initializeProfilePage = async () => {
+      console.log("ProfilePage: Received profileData:", profileData);
       
-      if (setProfileData) {
-        setProfileData(fetchedData);
+      if (!profileData) {
+        setIsLoading(false);
+        return;
       }
 
-    } catch (err) {
-      console.error('Failed to fetch profile:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+      // 1. Set local profile data
+      const creationDate = profileData.createdAt || null;
+      console.log("ProfilePage: createdAt from profileData:", creationDate);
+      
+      setLocalProfileData({
+        name: profileData.name || '',
+        email: profileData.email || '',
+        role: profileData.role || '',
+        company: profileData.company || '',
+        bio: profileData.bio || '',
+        avatar: profileData.avatar || '',
+        createdAt: creationDate
+      });
+      
+      if (profileData.avatar) {
+        setAvatarPreview(profileData.avatar);
+      }
+      
+      // 2. Calculate accountAge IMMEDIATELY
+      if (creationDate) {
+        const ageInDays = Math.floor(
+          (new Date() - new Date(creationDate)) / (1000 * 60 * 60 * 24)
+        );
+        console.log("ProfilePage: Calculated accountAge:", ageInDays);
+        setAccountAge(ageInDays);
+      } else {
+        console.warn("ProfilePage: No createdAt date found!");
+        setAccountAge(0);
+      }
 
-  // --- MODIFIED TO FETCH ALL STATS FROM API ---
-  const loadUserStats = async (accountCreationDate) => {
+      // 3. Load stats asynchronously
+      await loadUserStats();
+      
+      // 4. Done loading
+      setIsLoading(false);
+    };
+
+    initializeProfilePage();
+  }, [profileData]); // Re-run when profileData changes
+
+  const loadUserStats = async () => {
     const token = localStorage.getItem('token');
     if (!token) return;
 
     try {
       const config = { headers: { 'x-auth-token': token } };
       
-      // Fetch all stats in parallel
       const [scorecardRes, financialRes, growthRes, competitorRes] = await Promise.all([
-        axios.get('/api/scorecard', config),         // ✅ FIXED route
-        axios.get('/api/financial', config),         // ✅ ADDED financial route
-        axios.get('/api/growth', config),            // ✅ ADDED growth route
-        axios.get('/api/competitors', config)        // ✅ ADDED competitors route
+        axios.get('/api/scorecard', config),
+        axios.get('/api/financial', config),
+        axios.get('/api/growth', config),
+        axios.get('/api/competitors', config)
       ]);
-
-      // Calculate account age from user's creation date
-      const ageInDays = accountCreationDate 
-        ? Math.floor((new Date() - new Date(accountCreationDate)) / (1000 * 60 * 60 * 24)) 
-        : 0;
-
+      
       setUserStats({
         scorecardsGenerated: scorecardRes.data.length,
         financialReports: financialRes.data.length,
         growthAdvice: growthRes.data.length,
         watchedCompetitors: competitorRes.data.length,
-        accountAge: ageInDays
       });
 
     } catch (err) {
       console.error("Could not load user stats:", err);
-      // Don't show an error, just default to 0
       setUserStats({
         scorecardsGenerated: 0,
         financialReports: 0,
         growthAdvice: 0,
         watchedCompetitors: 0,
-        accountAge: 0
       });
     }
   };
@@ -142,7 +121,7 @@ const ProfilePage = ({ profileData, setProfileData }) => {
   const handleAvatarChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      if (file.size > 5000000) { // 5MB limit
+      if (file.size > 5000000) {
         alert('File size must be less than 5MB');
         return;
       }
@@ -168,13 +147,26 @@ const ProfilePage = ({ profileData, setProfileData }) => {
           'x-auth-token': token
         }
       };
-      // ✅ Use relative path for API call
-      const res = await axios.put('/api/auth/profile', localProfileData, config);
       
+      const res = await axios.put('/api/auth/profile', localProfileData, config);
       const updatedData = res.data;
       
-      // Update local state and parent state
-      initializeProfile(updatedData); 
+      // Update local state
+      setLocalProfileData({
+        name: updatedData.name || '',
+        email: updatedData.email || '',
+        role: updatedData.role || '',
+        company: updatedData.company || '',
+        bio: updatedData.bio || '',
+        avatar: updatedData.avatar || '',
+        createdAt: updatedData.createdAt
+      });
+      
+      if (updatedData.avatar) {
+        setAvatarPreview(updatedData.avatar);
+      }
+      
+      // Update parent state
       if (setProfileData) {
         setProfileData(updatedData);
       }
@@ -414,7 +406,7 @@ const ProfilePage = ({ profileData, setProfileData }) => {
                   value={localProfileData.bio}
                   onChange={handleChange}
                   rows="4"
-                  maxLength="500" // Added max length
+                  maxLength="500"
                   placeholder="Tell us a little about yourself..."
                   className={`${inputStyles} resize-y`}
                 ></textarea>
@@ -512,7 +504,8 @@ const ProfilePage = ({ profileData, setProfileData }) => {
                   <div>
                     <div className="text-sm text-gray-400">Member Since</div>
                     <div className="text-white font-medium">
-                      {userStats.accountAge} days ago
+                      {/* ✅ Display accountAge with fallback */}
+                      {accountAge > 0 ? `${accountAge} days ago` : 'Recently joined'}
                     </div>
                   </div>
                 </div>

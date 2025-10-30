@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
 import axios from 'axios';
 
-// ✅ FIXED: Added .jsx extensions to imports
+// ✅ Fixed Imports
 import Navbar from './components/Navbar.jsx';
 import LoginPage from './components/LoginPage.jsx';
 import SignUpPage from './components/SignUpPage.jsx';
@@ -21,23 +21,33 @@ import VerifyEmailPage from './components/VerifyEmailPage.jsx';
 import AuthSuccessPage from './components/AuthSuccessPage.jsx';
 import PrivacyPolicyPage from './components/PrivacyPolicyPage.jsx';
 import TermsOfServicePage from './components/TermsOfServicePage.jsx';
-import { applyTheme } from './utils/theme.js'; // Keep .js for utils
 import Chatbot from './components/Chatbot.jsx';
+
+import { applyTheme } from './utils/theme.js';
+
+// ✅ Optional: ProtectedRoute Wrapper
+const ProtectedRoute = ({ profileData, children }) => {
+  if (!profileData) return <Navigate to="/login" replace />;
+  return children;
+};
 
 function App() {
   const [profileData, setProfileData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [defaultPage, setDefaultPage] = useState('/dashboard');
 
-  // --- COMBINED: FETCH USER PROFILE & APPLY THEME ON APP LOAD ---
+  // --- FETCH USER PROFILE & APPLY THEME ON APP LOAD ---
   useEffect(() => {
     const fetchUserAndApplyTheme = async () => {
       const token = localStorage.getItem('token');
       if (token) {
         try {
-          // Use relative path for API proxy
           const config = { headers: { 'x-auth-token': token } };
           const res = await axios.get('/api/auth/profile', config);
+
+          // ✅ --- THIS IS THE DEBUGGING LINE ---
+          console.log("App.jsx: Profile data received from /api/auth/profile:", res.data);
+          // ------------------------------------
 
           if (res.data) {
             setProfileData(res.data);
@@ -45,26 +55,23 @@ function App() {
             applyTheme(savedTheme);
 
             const savedPage = res.data.settings?.defaultLandingPage;
-            if (savedPage) {
-              setDefaultPage(savedPage);
-            }
+            if (savedPage) setDefaultPage(savedPage);
           }
-
         } catch (error) {
-          console.error("Could not fetch profile on app load:", error);
-          // Clear token if profile fetch fails (e.g., expired token)
+          console.error('Could not fetch profile on app load:', error);
           localStorage.removeItem('token');
-          applyTheme('dark'); // Default theme if fetch fails
+          applyTheme('dark');
         }
       } else {
-          applyTheme('dark'); // Default theme if no token
+        applyTheme('dark');
       }
       setIsLoading(false);
     };
 
     fetchUserAndApplyTheme();
-  }, []); // Empty dependency array ensures this runs only once on mount
+  }, []);
 
+  // --- Loading Spinner ---
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
@@ -75,13 +82,14 @@ function App() {
 
   return (
     <Router>
-      {/* Conditionally render Navbar only when logged in */}
-      {profileData && <Navbar profileData={profileData} setProfileData={setProfileData} />}
+      {/* ✅ Navbar appears only when logged in */}
+      {profileData && (
+        <Navbar profileData={profileData} setProfileData={setProfileData} />
+      )}
 
-      {/* Apply padding-top only when Navbar is present to account for fixed navbar */}
-      <main className={profileData ? "pt-16" : ""}>
+      <main className={profileData ? 'pt-16' : ''}>
         <Routes>
-          {/* Public Routes */}
+          {/* --- Public Routes --- */}
           <Route path="/login" element={<LoginPage setProfileData={setProfileData} />} />
           <Route path="/signup" element={<SignUpPage />} />
           <Route path="/verify-email" element={<VerifyEmailPage />} />
@@ -92,45 +100,106 @@ function App() {
           <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
           <Route path="/terms-of-service" element={<TermsOfServicePage />} />
 
-          {/* Protected Routes Wrapper */}
+          {/* --- Default Root Redirect (No Infinite Loop) --- */}
           <Route
             path="/"
-            element={profileData ? <Navigate to={defaultPage} /> : <Navigate to="/login" />}
+            element={
+              profileData ? (
+                <Navigate to={defaultPage} replace />
+              ) : (
+                <Navigate to="/login" replace />
+              )
+            }
           />
 
           {/* --- Protected Routes --- */}
-          {/* Wrap protected routes to ensure profileData check */}
-          {profileData ? (
-             <>
-               <Route path="/dashboard" element={<DashboardPage />} />
-               <Route path="/scorecard" element={<ScorecardInput />} />
-               {/* Route definition remains correct */}
-               <Route path="/scorecard-result/:id" element={<ScorecardResultPage />} />
-               <Route path="/financials" element={<FinancialsPage />} />
-               <Route path="/growth-suggestions" element={<GrowthSuggestions />} />
-               <Route path="/alerts-feed" element={<AlertsFeedPage />} />
-               <Route path="/competitor-setup" element={<CompetitorSetupPage />} />
-               <Route
-                 path="/profile"
-                 element={<ProfilePage profileData={profileData} setProfileData={setProfileData} />}
-               />
-               <Route path="/settings" element={<SettingsPage />} />
-             </>
-          ) : (
-             // If not logged in, any attempt to access protected routes redirects to login
-             <Route path="*" element={<Navigate to="/login" />} />
-          )}
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute profileData={profileData}>
+                <DashboardPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/scorecard"
+            element={
+              <ProtectedRoute profileData={profileData}>
+                <ScorecardInput />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/scorecard-result/:id"
+            element={
+              <ProtectedRoute profileData={profileData}>
+                <ScorecardResultPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/financials"
+            element={
+              <ProtectedRoute profileData={profileData}>
+                <FinancialsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/growth-suggestions"
+            element={
+              <ProtectedRoute profileData={profileData}>
+                <GrowthSuggestions />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/alerts-feed"
+            element={
+              <ProtectedRoute profileData={profileData}>
+                <AlertsFeedPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/competitor-setup"
+            element={
+              <ProtectedRoute profileData={profileData}>
+                <CompetitorSetupPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/profile"
+            element={
+              <ProtectedRoute profileData={profileData}>
+                <ProfilePage profileData={profileData} setProfileData={setProfileData} />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/settings"
+            element={
+              <ProtectedRoute profileData={profileData}>
+                <SettingsPage />
+              </ProtectedRoute>
+            }
+          />
 
-          {/* Fallback for any other undefined routes */}
-          <Route path="*" element={<Navigate to="/" />} />
+          {/* --- Fallback for Undefined Routes --- */}
+          <Route
+            path="*"
+            element={
+              <Navigate to={profileData ? '/dashboard' : '/login'} replace />
+            }
+          />
         </Routes>
       </main>
 
-      {/* Conditionally render Chatbot only when logged in */}
+      {/* ✅ Chatbot only when logged in */}
       {profileData && <Chatbot />}
     </Router>
   );
 }
 
 export default App;
-
