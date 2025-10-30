@@ -189,6 +189,18 @@ router.post('/refresh/:reportId', authMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Server error' });
   }
 });
+// @route   GET api/competitors
+// @desc    Get all competitors (watchlist) for the logged-in user
+// @access  Private
+router.get('/', authMiddleware, async (req, res) => {
+  try {
+    const watchlist = await CompetitorReport.find({ userId: req.user.id });
+    res.json(watchlist);
+  } catch (err) {
+    console.error('Error fetching base competitor list:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
 
 // ✅ Get user's watchlist
 router.get('/watchlist', authMiddleware, async (req, res) => {
