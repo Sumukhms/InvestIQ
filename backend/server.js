@@ -14,6 +14,9 @@ const Prediction = require('./models/Prediction');
 // ✅ NEW: Added models needed for the watchdog
 const CompetitorReport = require('./models/CompetitorReport');
 const Alert = require('./models/Alert');
+// ✅ ADDED: Import new models (optional in server.js, but good for clarity)
+require('./models/GrowthSuggestion');
+require('./models/FinancialReport');
 
 // ✅ NEW: Import cron and the shared API helper
 const cron = require('node-cron');
@@ -96,6 +99,9 @@ const competitorsRoute = require('./routes/competitors');
 const scorecardRoutes = require('./routes/scorecard');
 const settingsRoutes = require('./routes/settings');
 const chatbotRoutes = require('./routes/chatbot');
+// ✅ ADDED: Define new routes
+const growthRoutes = require('./routes/growth');
+const financialRoutes = require('./routes/financial');
 
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/news', newsRoutes);
@@ -106,67 +112,15 @@ app.use('/api/settings', settingsRoutes);
 app.use('/api/chatbot', chatbotRoutes);
 // ✅ NEW: Register the alerts route
 app.use('/api/alerts', require('./routes/alerts'));
+// ✅ ADDED: Register new routes
+app.use('/api/growth', growthRoutes);
+app.use('/api/financial', financialRoutes);
 
 
 // --- One-off API Routes ---
 
-app.post('/api/growth-suggestions', async (req, res) => {
-    const { industry, stage, idea } = req.body;
-
-    if (!industry || !stage || !idea) {
-        return res.status(400).json({ error: 'Industry, stage, and the startup idea are required.' });
-    }
-
-    const API_KEY = process.env.GOOGLE_API_KEY;
-    const AI_API_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`;
-
-    if (!API_KEY) {
-        return res.status(500).json({ error: 'Google AI API key is not configured on the server.' });
-    }
-
-    const prompt = `
-    Act as an elite, world-class Venture Capital analyst and startup mentor. A founder needs your expert advice.
-    Your task is to provide the top 3 most critical and actionable priorities for them based on their specific startup IDEA, industry, and current stage.
-    Your advice must be highly specific, unique, and directly tailored to the founder's idea. Do not give generic, pre-written advice.
-
-    **Startup Idea:** "${idea}"
-    **Industry:** "${industry}"
-    **Stage:** "${stage}"
-
-    Provide your response ONLY in a structured JSON format, with no other text before or after the JSON block:
-    {
-      "product": ["Advice 1", "Advice 2", "Advice 3"],
-      "marketing": ["Advice 1", "Advice 2", "Advice 3"],
-      "fundraising": ["Advice 1", "Advice 2", "Advice 3"]
-    }
-  `;
-
-    const requestBody = {
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: {
-            response_mime_type: "application/json",
-        }
-    };
-
-    try {
-        console.log("Sending request to the documented Gemini v1beta endpoint...");
-        const response = await axios.post(AI_API_ENDPOINT, requestBody, {
-            headers: { 'Content-Type': 'application/json' }
-        });
-
-        const rawResponse = response.data.candidates[0].content.parts[0].text;
-        const cleanedResponse = rawResponse.replace(/```json\n|```/g, '').trim();
-
-        const aiSuggestions = JSON.parse(cleanedResponse);
-        console.log("Received a unique, AI-generated response from Gemini.");
-
-        res.json(aiSuggestions);
-
-    } catch (error) {
-        console.error("Error calling Google AI API:", error.response ? error.response.data : error.message);
-        res.status(500).json({ error: 'Failed to get a response from the AI service.' });
-    }
-});
+// ✅ REMOVED: The old '/api/growth-suggestions' route has been moved
+// to '/routes/growth.js' and is now managed by 'growthRoutes'.
 
 // Test route to create a new scorecard
 app.post('/api/scorecards', async (req, res) => {

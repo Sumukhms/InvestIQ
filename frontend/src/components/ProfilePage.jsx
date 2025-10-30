@@ -1,8 +1,9 @@
 // frontend/src/components/ProfilePage.jsx
-// Enhanced with modern UI, avatar upload, activity stats, and better UX
+// Enhanced with modern UI, avatar upload, and fully dynamic API-driven stats
 
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { useNavigate } from 'react-router-dom'; // Import useNavigate
 
 const ProfilePage = ({ profileData, setProfileData }) => {
   const [localProfileData, setLocalProfileData] = useState({
@@ -19,38 +20,47 @@ const ProfilePage = ({ profileData, setProfileData }) => {
   const [activeTab, setActiveTab] = useState('profile');
   const [showSuccess, setShowSuccess] = useState(false);
   const [avatarPreview, setAvatarPreview] = useState(null);
+  const navigate = useNavigate(); // Initialize navigate
 
   // User statistics - will be loaded from the backend
   const [userStats, setUserStats] = useState({
     scorecardsGenerated: 0,
-    financialReports: 0, // Note: This and others below are still mock/localStorage based
+    financialReports: 0,
     growthAdvice: 0,
     watchedCompetitors: 0,
     accountAge: 0
   });
 
   useEffect(() => {
-    // If profileData prop exists, use it to initialize
-    if (profileData) {
-      setLocalProfileData({
-        name: profileData.name || '',
-        email: profileData.email || '',
-        role: profileData.role || '',
-        company: profileData.company || '',
-        bio: profileData.bio || '',
-        avatar: profileData.avatar || ''
-      });
-      if (profileData.avatar) {
-        setAvatarPreview(profileData.avatar);
-      }
-      setIsLoading(false);
-    } else {
-      // Fallback: fetch if prop is not available
+    // If profileData prop is not available, fetch it
+    // The fetchProfile function will now also trigger loadUserStats
+    if (!profileData) {
       fetchProfile();
+    } else {
+      // If prop *is* available, use it
+      initializeProfile(profileData);
     }
-    // Load stats after profile is potentially fetched
-    loadUserStats();
-  }, [profileData]);
+  }, [profileData]); // Re-run if the prop changes
+
+  // Helper to set profile from prop or fetch
+  const initializeProfile = (data) => {
+    const profile = {
+      name: data.name || '',
+      email: data.email || '',
+      role: data.role || '',
+      company: data.company || '',
+      bio: data.bio || '',
+      avatar: data.avatar || '',
+      date: data.date || null // Make sure to get the creation date
+    };
+    setLocalProfileData(profile);
+    if (data.avatar) {
+      setAvatarPreview(data.avatar);
+    }
+    // Load stats using the fetched profile's creation date
+    loadUserStats(profile.date); 
+    setIsLoading(false);
+  };
 
   const fetchProfile = async () => {
     const token = localStorage.getItem('token');
@@ -64,25 +74,16 @@ const ProfilePage = ({ profileData, setProfileData }) => {
       const config = {
         headers: { 'x-auth-token': token }
       };
-      const res = await axios.get('http://localhost:5000/api/auth/profile', config);
+      // ✅ Use relative path for API call
+      const res = await axios.get('/api/auth/profile', config);
 
-      const fetchedData = {
-        name: res.data.name || '',
-        email: res.data.email || '',
-        role: res.data.role || '',
-        company: res.data.company || '',
-        bio: res.data.bio || '',
-        avatar: res.data.avatar || ''
-      };
+      const fetchedData = res.data;
 
-      setLocalProfileData(fetchedData);
+      // Pass the full fetched data to the initializer
+      initializeProfile(fetchedData);
       
       if (setProfileData) {
         setProfileData(fetchedData);
-      }
-
-      if (res.data.avatar) {
-        setAvatarPreview(res.data.avatar);
       }
 
     } catch (err) {
@@ -92,36 +93,46 @@ const ProfilePage = ({ profileData, setProfileData }) => {
     }
   };
 
-  // --- MODIFIED TO FETCH SCORECARD COUNT FROM API ---
-  const loadUserStats = async () => {
+  // --- MODIFIED TO FETCH ALL STATS FROM API ---
+  const loadUserStats = async (accountCreationDate) => {
     const token = localStorage.getItem('token');
     if (!token) return;
 
-    let scorecardsCount = 0;
     try {
       const config = { headers: { 'x-auth-token': token } };
-      const res = await axios.get('http://localhost:5000/api/scorecard/history', config);
-      scorecardsCount = res.data.length; // Get the count of scorecards from the DB
-    } catch (err) {
-      console.error("Could not fetch scorecard stats:", err);
-    }
-    
-    // Load other stats from localStorage (as backend routes for these don't exist yet)
-    const financials = JSON.parse(localStorage.getItem('financialReports') || '[]');
-    const growth = JSON.parse(localStorage.getItem('growthSuggestions') || '[]');
-    const watchlist = JSON.parse(localStorage.getItem('competitorWatchlist') || '[]');
-    
-    // Calculate account age (mock - should come from backend)
-    const accountCreated = localStorage.getItem('accountCreated') || new Date().toISOString();
-    const ageInDays = Math.floor((new Date() - new Date(accountCreated)) / (1000 * 60 * 60 * 24));
+      
+      // Fetch all stats in parallel
+      const [scorecardRes, financialRes, growthRes, competitorRes] = await Promise.all([
+        axios.get('/api/scorecard', config),         // ✅ FIXED route
+        axios.get('/api/financial', config),         // ✅ ADDED financial route
+        axios.get('/api/growth', config),            // ✅ ADDED growth route
+        axios.get('/api/competitors', config)        // ✅ ADDED competitors route
+      ]);
 
-    setUserStats({
-      scorecardsGenerated: scorecardsCount, // <-- Use the count from the database
-      financialReports: financials.length,
-      growthAdvice: growth.length,
-      watchedCompetitors: watchlist.length,
-      accountAge: ageInDays
-    });
+      // Calculate account age from user's creation date
+      const ageInDays = accountCreationDate 
+        ? Math.floor((new Date() - new Date(accountCreationDate)) / (1000 * 60 * 60 * 24)) 
+        : 0;
+
+      setUserStats({
+        scorecardsGenerated: scorecardRes.data.length,
+        financialReports: financialRes.data.length,
+        growthAdvice: growthRes.data.length,
+        watchedCompetitors: competitorRes.data.length,
+        accountAge: ageInDays
+      });
+
+    } catch (err) {
+      console.error("Could not load user stats:", err);
+      // Don't show an error, just default to 0
+      setUserStats({
+        scorecardsGenerated: 0,
+        financialReports: 0,
+        growthAdvice: 0,
+        watchedCompetitors: 0,
+        accountAge: 0
+      });
+    }
   };
 
   const handleChange = (e) => {
@@ -157,11 +168,13 @@ const ProfilePage = ({ profileData, setProfileData }) => {
           'x-auth-token': token
         }
       };
-      const res = await axios.put('http://localhost:5000/api/auth/profile', localProfileData, config);
+      // ✅ Use relative path for API call
+      const res = await axios.put('/api/auth/profile', localProfileData, config);
       
       const updatedData = res.data;
-      setLocalProfileData(updatedData);
       
+      // Update local state and parent state
+      initializeProfile(updatedData); 
       if (setProfileData) {
         setProfileData(updatedData);
       }
@@ -401,6 +414,7 @@ const ProfilePage = ({ profileData, setProfileData }) => {
                   value={localProfileData.bio}
                   onChange={handleChange}
                   rows="4"
+                  maxLength="500" // Added max length
                   placeholder="Tell us a little about yourself..."
                   className={`${inputStyles} resize-y`}
                 ></textarea>
