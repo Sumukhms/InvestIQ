@@ -1,7 +1,8 @@
 // frontend/src/components/GrowthSuggestions.jsx
-// Enhanced version with better prompts, UI, and save functionality
+// Enhanced version, now integrated with secure backend API routes
 
 import React, { useState, useEffect } from 'react';
+import axios from 'axios'; // Import axios for API calls
 
 const GrowthSuggestions = () => {
   const [industry, setIndustry] = useState('FinTech');
@@ -17,13 +18,22 @@ const GrowthSuggestions = () => {
   const [showSaved, setShowSaved] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
 
-  // Load saved suggestions on mount
+  // Load saved suggestions from the database on mount
   useEffect(() => {
-    const saved = localStorage.getItem('growthSuggestions');
-    if (saved) {
-      setSavedSuggestions(JSON.parse(saved));
-    }
+    fetchSavedSuggestions();
   }, []);
+
+  const fetchSavedSuggestions = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await axios.get('/api/growth', {
+        headers: { 'x-auth-token': token },
+      });
+      setSavedSuggestions(res.data);
+    } catch (err) {
+      console.error('Error fetching saved suggestions:', err);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -31,103 +41,76 @@ const GrowthSuggestions = () => {
     setError('');
     setSuggestions(null);
 
-    // Enhanced prompt for better Gemini responses
-    const enhancedPrompt = `
-You are an experienced startup advisor and venture capitalist. Provide actionable, specific growth advice for this startup:
-
-**Startup Idea:** ${idea}
-**Industry:** ${industry}
-**Growth Stage:** ${stage}
-${targetMarket ? `**Target Market:** ${targetMarket}` : ''}
-${currentChallenges ? `**Current Challenges:** ${currentChallenges}` : ''}
-
-Provide comprehensive, structured advice in the following categories. Be specific, actionable, and include real examples where possible:
-
-1. **Growth Strategy** (3-4 specific tactics)
-2. **Marketing & Customer Acquisition** (3-4 channel recommendations)
-3. **Product Development** (3-4 feature or improvement suggestions)
-4. **Fundraising Tips** (3-4 investor approach strategies)
-5. **Key Metrics to Track** (3-4 essential KPIs)
-6. **Potential Risks** (2-3 major risks and mitigation strategies)
-
-Format each point as a clear, actionable recommendation. Use bold text for emphasis using **text**.
-`;
+    // The backend /api/growth route now builds the prompt internally.
+    // We just need to send the raw data.
+    const inputData = {
+      industry,
+      stage,
+      idea,
+      targetMarket,
+      currentChallenges,
+    };
 
     try {
-      const response = await fetch('http://localhost:5000/api/growth-suggestions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          industry, 
-          stage, 
-          idea,
-          targetMarket,
-          currentChallenges,
-          prompt: enhancedPrompt 
-        }),
+      const token = localStorage.getItem('token');
+      // Use the new, secure /api/growth endpoint
+      const response = await axios.post('/api/growth', inputData, {
+        headers: {
+          'Content-Type': 'application/json',
+          'x-auth-token': token,
+        },
       });
 
-      if (!response.ok) {
-        const errData = await response.json();
-        throw new Error(errData.error || 'Failed to get suggestions.');
+      if (!response.data) {
+        throw new Error('Failed to get suggestions.');
       }
       
-      const result = await response.json();
-      setSuggestions(result);
+      // The response is the full saved report.
+      // We extract the suggestions to display them.
+      setSuggestions(response.data.suggestions);
+
+      // Add the new report to the top of the saved list
+      setSavedSuggestions([response.data, ...savedSuggestions]);
 
     } catch (err) {
-      setError(err.message || 'Failed to connect to AI advisor. Please check your backend.');
+      const msg = err.response?.data?.msg || 'Failed to connect to AI advisor. Please try again.';
+      setError(msg);
       console.error("Suggestion API error:", err);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleSaveSuggestion = () => {
-    if (!suggestions) {
-      alert('No suggestions to save. Please generate suggestions first.');
-      return;
-    }
-
-    const reportName = prompt('Name this advice session:', `${industry} - ${stage} - ${new Date().toLocaleDateString()}`);
-    if (!reportName) return;
-
-    const newSuggestion = {
-      id: Date.now(),
-      name: reportName,
-      date: new Date().toISOString(),
-      data: {
-        industry,
-        stage,
-        idea,
-        targetMarket,
-        currentChallenges,
-        suggestions,
-      }
-    };
-
-    const updated = [newSuggestion, ...savedSuggestions];
-    setSavedSuggestions(updated);
-    localStorage.setItem('growthSuggestions', JSON.stringify(updated));
-    alert('Advice saved successfully!');
-  };
+  // handleSaveSuggestion is no longer needed,
+  // as handleSubmit now saves automatically.
 
   const handleLoadSuggestion = (saved) => {
-    setIndustry(saved.data.industry);
-    setStage(saved.data.stage);
-    setIdea(saved.data.idea);
-    setTargetMarket(saved.data.targetMarket || '');
-    setCurrentChallenges(saved.data.currentChallenges || '');
-    setSuggestions(saved.data.suggestions);
+    // Load data from the saved report object
+    setIndustry(saved?.inputs?.industry || 'FinTech');
+    setStage(saved?.inputs?.stage || 'Idea');
+    setIdea(saved?.inputs?.idea || '');
+    setTargetMarket(saved?.inputs?.targetMarket || '');
+    setCurrentChallenges(saved?.inputs?.currentChallenges || '');
+    setSuggestions(saved.suggestions);
     setShowSaved(false);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleDeleteSuggestion = (id) => {
-    if (!confirm('Are you sure you want to delete this saved advice?')) return;
-    const updated = savedSuggestions.filter(s => s.id !== id);
-    setSavedSuggestions(updated);
-    localStorage.setItem('growthSuggestions', JSON.stringify(updated));
+  const handleDeleteSuggestion = async (id) => {
+    // Use a custom modal/confirm dialog in a real app
+    if (!window.confirm('Are you sure you want to delete this saved advice?')) return;
+    try {
+      const token = localStorage.getItem('token');
+      await axios.delete(`/api/growth/${id}`, {
+        headers: { 'x-auth-token': token },
+      });
+      // Remove from state
+      const updated = savedSuggestions.filter(s => s._id !== id);
+      setSavedSuggestions(updated);
+    } catch (err) {
+      console.error('Error deleting suggestion:', err);
+      setError('Failed to delete report.');
+    }
   };
 
   const handleExportPDF = () => {
@@ -139,10 +122,15 @@ Format each point as a clear, actionable recommendation. Use bold text for empha
     content += `Generated: ${new Date().toLocaleString()}\n`;
     content += `\n${'='.repeat(60)}\n\n`;
     
+    // Updated to handle the new suggestions object structure
     Object.entries(suggestions).forEach(([category, items]) => {
-      content += `${category.toUpperCase()}\n${'-'.repeat(40)}\n`;
-      items.forEach((item, idx) => {
-        const cleanItem = item.replace(/\*\*(.*?)\*\*/g, '$1');
+      // Capitalize the category name
+      const categoryName = category.charAt(0).toUpperCase() + category.slice(1);
+      content += `${categoryName}\n${'-'.repeat(40)}\n`;
+      
+      // ✅ FIX: Ensure 'items' is an array before iterating
+      (Array.isArray(items) ? items : []).forEach((item, idx) => {
+        const cleanItem = String(item).replace(/\*\*(.*?)\*\*/g, '$1');
         content += `${idx + 1}. ${cleanItem}\n\n`;
       });
       content += '\n';
@@ -162,12 +150,10 @@ Format each point as a clear, actionable recommendation. Use bold text for empha
 
   const getCategoryIcon = (category) => {
     const icons = {
-      'growth strategy': '🚀',
-      'marketing & customer acquisition': '📈',
-      'product development': '💡',
-      'fundraising tips': '💰',
-      'key metrics to track': '📊',
-      'potential risks': '⚠️',
+      'product': '💡',
+      'marketing': '📈',
+      'fundraising': '💰',
+      // Add more as needed
     };
     return icons[category.toLowerCase()] || '✨';
   };
@@ -187,12 +173,7 @@ Format each point as a clear, actionable recommendation. Use bold text for empha
             <div className="flex gap-2">
               {suggestions && (
                 <>
-                  <button
-                    onClick={handleSaveSuggestion}
-                    className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg text-sm font-medium transition-colors"
-                  >
-                    💾 Save Advice
-                  </button>
+                  {/* Removed the Save button, as it saves on generate */}
                   <button
                     onClick={handleExportPDF}
                     className="px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg text-sm font-medium transition-colors"
@@ -218,36 +199,49 @@ Format each point as a clear, actionable recommendation. Use bold text for empha
                 <p className="text-gray-500">No saved advice yet. Generate and save your first session!</p>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {savedSuggestions.map(saved => (
-                    <div key={saved.id} className="bg-gray-700/50 p-4 rounded-lg border border-gray-600">
-                      <div className="flex items-start justify-between mb-2">
-                        <div className="flex-1">
-                          <h4 className="font-semibold text-white">{saved.name}</h4>
-                          <p className="text-xs text-gray-400 mt-1">
-                            {saved.data.industry} • {saved.data.stage}
-                          </p>
-                          <p className="text-xs text-gray-500 mt-1">
-                            {new Date(saved.date).toLocaleDateString()} at {new Date(saved.date).toLocaleTimeString()}
-                          </p>
+                  {savedSuggestions.map(saved => {
+                    // ✅ FIX: Safer data access. Check if idea is a string, otherwise provide a fallback.
+                    const ideaText = (saved?.inputs && typeof saved.inputs.idea === 'string') 
+                      ? saved.inputs.idea 
+                      : 'Untitled Report';
+                    
+                    const titleText = ideaText.substring(0, 40) + (ideaText.length > 40 ? '...' : '');
+
+                    return (
+                      // Use saved._id as the key
+                      <div key={saved._id} className="bg-gray-700/50 p-4 rounded-lg border border-gray-600">
+                        <div className="flex items-start justify-between mb-2">
+                          <div className="flex-1">
+                            {/* Title based on 'idea' */}
+                            <h4 className="font-semibold text-white">{titleText}</h4>
+                            <p className="text-xs text-gray-400 mt-1">
+                              {saved?.inputs?.industry || 'N/A'} • {saved?.inputs?.stage || 'N/A'}
+                            </p>
+                            <p className="text-xs text-gray-500 mt-1">
+                              {/* Use DB 'date' field */}
+                              {new Date(saved.date).toLocaleDateString()} at {new Date(saved.date).toLocaleTimeString()}
+                            </p>
+                          </div>
+                        </div>
+                        <p className="text-sm text-gray-300 mb-3 line-clamp-2">{ideaText}</p>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleLoadSuggestion(saved)}
+                            className="flex-1 px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded text-sm transition-colors"
+                          >
+                            Load
+                          </button>
+                          <button
+                            // Pass saved._id to the delete function
+                            onClick={() => handleDeleteSuggestion(saved._id)}
+                            className="px-3 py-2 bg-red-600 hover:bg-red-700 rounded text-sm transition-colors"
+                          >
+                            Delete
+                          </button>
                         </div>
                       </div>
-                      <p className="text-sm text-gray-300 mb-3 line-clamp-2">{saved.data.idea}</p>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => handleLoadSuggestion(saved)}
-                          className="flex-1 px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded text-sm transition-colors"
-                        >
-                          Load
-                        </button>
-                        <button
-                          onClick={() => handleDeleteSuggestion(saved.id)}
-                          className="px-3 py-2 bg-red-600 hover:bg-red-700 rounded text-sm transition-colors"
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -403,7 +397,7 @@ Format each point as a clear, actionable recommendation. Use bold text for empha
                       <h3 className="text-red-400 font-bold mb-2">Error Getting Advice</h3>
                       <p className="text-red-300">{error}</p>
                       <p className="text-sm text-gray-400 mt-2">
-                        Make sure your backend server is running on port 5000 and the Gemini API key is configured.
+                        Please ensure you are logged in and your backend server is running.
                       </p>
                     </div>
                   </div>
@@ -415,10 +409,11 @@ Format each point as a clear, actionable recommendation. Use bold text for empha
                   <div className="border-b border-gray-700 pb-4 mb-6">
                     <h2 className="text-2xl font-bold text-blue-400">Your Personalized Growth Roadmap</h2>
                     <p className="text-gray-400 mt-1">
-                      Tailored advice for {idea.substring(0, 60)}...
+                      Tailored advice for {typeof idea === 'string' ? idea.substring(0, 60) : 'your idea'}...
                     </p>
                   </div>
 
+                  {/* Updated to use the new object structure */}
                   {Object.entries(suggestions).map(([category, items]) => (
                     <div key={category} className="bg-gray-700/30 rounded-lg p-6 border border-gray-600">
                       <h3 className="text-xl font-semibold text-blue-300 capitalize flex items-center gap-2 mb-4">
@@ -426,12 +421,13 @@ Format each point as a clear, actionable recommendation. Use bold text for empha
                         {category}
                       </h3>
                       <ul className="space-y-3">
-                        {items.map((item, index) => (
+                        {/* ✅ FIX: Ensure 'items' is an array before mapping */}
+                        {(Array.isArray(items) ? items : []).map((item, index) => (
                           <li key={index} className="flex items-start gap-3 text-gray-300">
                             <span className="text-blue-400 font-bold mt-1 flex-shrink-0">{index + 1}.</span>
                             <span
                               dangerouslySetInnerHTML={{
-                                __html: item.replace(/\*\*(.*?)\*\*/g, '<strong class="text-white">$1</strong>')
+                                __html: String(item).replace(/\*\*(.*?)\*\*/g, '<strong class="text-white">$1</strong>')
                               }}
                             />
                           </li>
@@ -444,15 +440,9 @@ Format each point as a clear, actionable recommendation. Use bold text for empha
                   <div className="bg-gradient-to-r from-blue-900/20 to-purple-900/20 border border-blue-600/30 rounded-lg p-6">
                     <h3 className="text-lg font-semibold text-blue-300 mb-2">🎯 Next Steps</h3>
                     <p className="text-gray-300 mb-4">
-                      Use these insights to refine your strategy. Consider saving this advice for future reference and revisiting it as your startup evolves.
+                      Your advice has been automatically saved. You can load it from the "Saved" panel at any time.
                     </p>
                     <div className="flex gap-3 flex-wrap">
-                      <button
-                        onClick={handleSaveSuggestion}
-                        className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg font-medium transition-colors"
-                      >
-                        💾 Save This Advice
-                      </button>
                       <button
                         onClick={handleExportPDF}
                         className="px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg font-medium transition-colors"
@@ -463,6 +453,8 @@ Format each point as a clear, actionable recommendation. Use bold text for empha
                         onClick={() => {
                           setSuggestions(null);
                           setIdea('');
+                          setTargetMarket('');
+                          setCurrentChallenges('');
                           window.scrollTo({ top: 0, behavior: 'smooth' });
                         }}
                         className="px-4 py-2 bg-gray-600 hover:bg-gray-700 rounded-lg font-medium transition-colors"
@@ -482,24 +474,24 @@ Format each point as a clear, actionable recommendation. Use bold text for empha
                   </h3>
                   <p className="text-gray-500 max-w-md">
                     Fill in your startup details and get personalized, actionable advice powered by advanced AI.
-                    Our advisor analyzes your industry, stage, and specific challenges to provide tailored recommendations.
+                    Your report will be automatically saved to your account.
                   </p>
                   <div className="mt-6 grid grid-cols-2 gap-4 text-sm">
-                    <div className="bg-gray-700/30 p-4 rounded-lg">
-                      <div className="text-2xl mb-2">🎯</div>
-                      <p className="text-gray-400">Personalized Strategy</p>
-                    </div>
-                    <div className="bg-gray-700/30 p-4 rounded-lg">
-                      <div className="text-2xl mb-2">📊</div>
-                      <p className="text-gray-400">Key Metrics</p>
-                    </div>
                     <div className="bg-gray-700/30 p-4 rounded-lg">
                       <div className="text-2xl mb-2">💡</div>
                       <p className="text-gray-400">Product Insights</p>
                     </div>
                     <div className="bg-gray-700/30 p-4 rounded-lg">
+                      <div className="text-2xl mb-2">📈</div>
+                      <p className="text-gray-400">Marketing Strategy</p>
+                    </div>
+                    <div className="bg-gray-700/30 p-4 rounded-lg">
                       <div className="text-2xl mb-2">💰</div>
                       <p className="text-gray-400">Fundraising Tips</p>
+                    </div>
+                    <div className="bg-gray-700/30 p-4 rounded-lg">
+                      <div className="text-2xl mb-2">💾</div>
+                      <p className="text-gray-400">Auto-Saves Reports</p>
                     </div>
                   </div>
                 </div>
@@ -513,3 +505,4 @@ Format each point as a clear, actionable recommendation. Use bold text for empha
 };
 
 export default GrowthSuggestions;
+

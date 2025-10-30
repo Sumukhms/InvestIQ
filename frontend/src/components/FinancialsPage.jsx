@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import axios from 'axios'; // Import axios for API calls
 import { 
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, 
   ResponsiveContainer, ReferenceLine, LineChart, Line, BarChart, Bar,
@@ -76,14 +77,49 @@ const FinancialsPage = () => {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [savedReports, setSavedReports] = useState([]);
   const [showSaved, setShowSaved] = useState(false);
+  const [loading, setLoading] = useState(false);
+  
+  // State for UI messages
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
-  // Load saved reports on mount
+  // State for auto-saving
+  const [currentReportId, setCurrentReportId] = useState(null);
+  const [currentReportName, setCurrentReportName] = useState('');
+
+  // Load saved reports from API on mount
   React.useEffect(() => {
-    const saved = localStorage.getItem('financialReports');
-    if (saved) {
-      setSavedReports(JSON.parse(saved));
-    }
+    fetchSavedReports();
   }, []);
+
+  // Effect to clear messages after 3 seconds
+  useEffect(() => {
+    let timer;
+    if (error) {
+      timer = setTimeout(() => setError(''), 3000);
+    }
+    if (success) {
+      timer = setTimeout(() => setSuccess(''), 3000);
+    }
+    return () => clearTimeout(timer);
+  }, [error, success]);
+
+
+  const fetchSavedReports = async () => {
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await axios.get('/api/financial', {
+        headers: { 'x-auth-token': token }
+      });
+      setSavedReports(res.data);
+    } catch (err) {
+      console.error('Error fetching saved reports:', err);
+      setError('Could not fetch saved reports.'); // Use error state
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Advanced inputs
   const [expenseCategories, setExpenseCategories] = useState({
@@ -93,99 +129,93 @@ const FinancialsPage = () => {
     operations: '',
   });
 
+  // Gathers all current data into an object for saving
+  const packageReportData = () => {
+    return {
+      initialCash,
+      monthlyRevenue,
+      monthlyExpenses,
+      expenseCategories,
+      metrics,
+      chartData,
+      cashFlowData,
+      runwayData,
+      expenseBreakdown,
+    };
+  };
+
   const handleCalculate = (e) => {
     e.preventDefault();
+    setSuccess(''); // Clear success message
 
     // Validation
-    const isNumericArray = (str) => str.split(',').every(val => !isNaN(parseFloat(val)) && isFinite(val.trim()));
+    const isNumericArray = (str) => str.trim() === '' || str.split(',').every(val => !isNaN(parseFloat(val)) && isFinite(val.trim()));
     if (!isNumericArray(monthlyRevenue) || !isNumericArray(monthlyExpenses)) {
-      alert("Please ensure Revenue and Expenses contain only comma-separated numbers.");
+      setError("Please ensure Revenue and Expenses contain only comma-separated numbers."); // Use error state
       return;
     }
+    
+    // Handle empty strings as single 0
+    const revenueArray = monthlyRevenue.trim() === '' ? [0] : monthlyRevenue.split(',').map(val => Number(val.trim()));
+    const expensesArray = monthlyExpenses.trim() === '' ? [0] : monthlyExpenses.split(',').map(val => Number(val.trim()));
+    
+    // Ensure arrays are the same length for calculation, padding with last value or 0
+    const maxLength = Math.max(revenueArray.length, expensesArray.length);
+    while (revenueArray.length < maxLength) revenueArray.push(revenueArray[revenueArray.length - 1] || 0);
+    while (expensesArray.length < maxLength) expensesArray.push(expensesArray[expensesArray.length - 1] || 0);
 
-    const revenueArray = monthlyRevenue.split(',').map(val => Number(val.trim()));
-    const expensesArray = monthlyExpenses.split(',').map(val => Number(val.trim()));
     const startingCash = parseFloat(initialCash);
+    if (isNaN(startingCash)) {
+        setError("Please enter a valid Initial Cash Balance."); // Use error state
+        return;
+    }
+    setError(''); // Clear error on successful validation
 
-    // Calculate metrics
+    // ... (calculations)
     const totalRevenue = revenueArray.reduce((acc, val) => acc + val, 0);
     const totalExpenses = expensesArray.reduce((acc, val) => acc + val, 0);
     const avgRevenue = totalRevenue / revenueArray.length;
     const avgExpenses = totalExpenses / expensesArray.length;
     const avgMonthlyBurn = avgExpenses - avgRevenue;
-
-    // Calculate revenue growth rate
     const firstRevenue = revenueArray[0];
     const lastRevenue = revenueArray[revenueArray.length - 1];
     const growthRate = firstRevenue > 0 ? ((lastRevenue - firstRevenue) / firstRevenue) * 100 : 0;
-
-    // Build chart data with cumulative cash
     let cumulativeCash = startingCash;
     const newChartData = [];
     const newCashFlowData = [];
     const newRunwayData = [];
     let profitableMonth = null;
     let cashoutMonth = null;
-
     for (let i = 0; i < revenueArray.length; i++) {
       const revenue = revenueArray[i];
       const expenses = expensesArray[i] || 0;
       const cashFlow = revenue - expenses;
       cumulativeCash += cashFlow;
-
-      newChartData.push({
-        name: `Month ${i + 1}`,
-        revenue: revenue,
-        expenses: expenses,
-        cumulativeCash: cumulativeCash,
-      });
-
-      newCashFlowData.push({
-        name: `Month ${i + 1}`,
-        cashFlow: cashFlow,
-      });
-
-      // Calculate projected runway from this point
+      newChartData.push({ name: `Month ${i + 1}`, revenue, expenses, cumulativeCash });
+      newCashFlowData.push({ name: `Month ${i + 1}`, cashFlow });
       const remainingCash = cumulativeCash;
       const currentBurn = expenses - revenue;
       const projectedRunway = currentBurn > 0 ? remainingCash / currentBurn : 999;
-
-      newRunwayData.push({
-        name: `Month ${i + 1}`,
-        runway: Math.max(0, projectedRunway),
-        cash: cumulativeCash,
-      });
-
-      // Track when profitable
-      if (!profitableMonth && revenue > expenses) {
-        profitableMonth = i + 1;
-      }
-
-      // Track when cash runs out
-      if (!cashoutMonth && cumulativeCash <= 0) {
-        cashoutMonth = i + 1;
-      }
+      newRunwayData.push({ name: `Month ${i + 1}`, runway: Math.max(0, projectedRunway), cash: cumulativeCash });
+      if (!profitableMonth && revenue > expenses) profitableMonth = i + 1;
+      if (!cashoutMonth && cumulativeCash <= 0) cashoutMonth = i + 1;
     }
-
     setChartData(newChartData);
     setCashFlowData(newCashFlowData);
     setRunwayData(newRunwayData);
-
-    // Calculate final runway
     const finalRunway = avgMonthlyBurn > 0 ? cumulativeCash / avgMonthlyBurn : Infinity;
-
-    // Expense breakdown (if provided)
+    let newExpenseBreakdown = [];
     if (Object.values(expenseCategories).some(val => val !== '')) {
-      const categories = [
+      newExpenseBreakdown = [
         { name: 'Salaries', value: parseFloat(expenseCategories.salaries) || 0, color: '#3B82F6' },
         { name: 'Marketing', value: parseFloat(expenseCategories.marketing) || 0, color: '#10B981' },
         { name: 'Infrastructure', value: parseFloat(expenseCategories.infrastructure) || 0, color: '#F59E0B' },
         { name: 'Operations', value: parseFloat(expenseCategories.operations) || 0, color: '#EF4444' },
       ].filter(cat => cat.value > 0);
-      setExpenseBreakdown(categories);
+      setExpenseBreakdown(newExpenseBreakdown);
     }
 
-    setMetrics({
+    const newMetrics = {
       netBurn: avgMonthlyBurn,
       runway: finalRunway,
       cashBalance: cumulativeCash,
@@ -196,63 +226,130 @@ const FinancialsPage = () => {
       growthRate,
       profitableMonth,
       cashoutMonth,
-    });
-
+    };
+    setMetrics(newMetrics);
     setHasCalculated(true);
+
+    // Call autosave immediately after calculation
+    autosaveReport(newMetrics, newChartData, newCashFlowData, newRunwayData, newExpenseBreakdown);
   };
 
-  const handleSaveReport = () => {
-    if (!hasCalculated) {
-      alert('Please calculate metrics first before saving.');
-      return;
-    }
-
-    const reportName = prompt('Enter a name for this financial report:', `Report ${new Date().toLocaleDateString()}`);
-    if (!reportName) return;
-
-    const newReport = {
-      id: Date.now(),
-      name: reportName,
-      date: new Date().toISOString(),
-      data: {
-        initialCash,
-        monthlyRevenue,
-        monthlyExpenses,
-        expenseCategories,
-        metrics,
-        chartData,
-        cashFlowData,
-        runwayData,
-        expenseBreakdown,
-      }
+  // Autosave function
+  const autosaveReport = async (metrics, chartData, cashFlowData, runwayData, expenseBreakdown) => {
+    setLoading(true);
+    
+    const reportData = {
+      initialCash,
+      monthlyRevenue,
+      monthlyExpenses,
+      expenseCategories,
+      metrics,
+      chartData,
+      cashFlowData,
+      runwayData,
+      expenseBreakdown,
     };
 
-    const updatedReports = [newReport, ...savedReports];
-    setSavedReports(updatedReports);
-    localStorage.setItem('financialReports', JSON.stringify(updatedReports));
-    alert('Report saved successfully!');
+    const reportToSave = {
+      reportName: currentReportName || `Financial Report - ${new Date().toLocaleDateString()}`,
+      reportData,
+    };
+
+    try {
+      const token = localStorage.getItem('token');
+      
+      if (currentReportId) {
+        // UPDATE existing report
+        const res = await axios.put(`/api/financial/${currentReportId}`, reportToSave, {
+          headers: { 'Content-Type': 'application/json', 'x-auth-token': token }
+        });
+        // Update the report in the saved list
+        setSavedReports(savedReports.map(r => r._id === currentReportId ? res.data : r));
+        setSuccess('Report autosaved!');
+      } else {
+        // CREATE new report
+        const res = await axios.post('/api/financial', reportToSave, {
+          headers: { 'Content-Type': 'application/json', 'x-auth-token': token }
+        });
+        // Add new report to list and set its ID as the current one
+        setSavedReports([res.data, ...savedReports]);
+        setCurrentReportId(res.data._id);
+        setCurrentReportName(res.data.reportName);
+        setSuccess('Report saved!');
+      }
+    } catch (err) {
+      console.error('Error autosaving report:', err);
+      setError('Failed to autosave report.');
+    } finally {
+      setLoading(false);
+    }
   };
+
 
   const handleLoadReport = (report) => {
-    setInitialCash(report.data.initialCash);
-    setMonthlyRevenue(report.data.monthlyRevenue);
-    setMonthlyExpenses(report.data.monthlyExpenses);
-    setExpenseCategories(report.data.expenseCategories);
-    setMetrics(report.data.metrics);
-    setChartData(report.data.chartData);
-    setCashFlowData(report.data.cashFlowData);
-    setRunwayData(report.data.runwayData);
-    setExpenseBreakdown(report.data.expenseBreakdown);
+    // Data is nested inside reportData
+    const data = report.reportData;
+    setInitialCash(data.initialCash);
+    setMonthlyRevenue(data.monthlyRevenue);
+    setMonthlyExpenses(data.monthlyExpenses);
+    setExpenseCategories(data.expenseCategories);
+    setMetrics(data.metrics);
+    setChartData(data.chartData);
+    setCashFlowData(data.cashFlowData);
+    setRunwayData(data.runwayData);
+    setExpenseBreakdown(data.expenseBreakdown);
+    
+    // Set the current report ID to enable autosaving over this loaded report
+    setCurrentReportId(report._id);
+    setCurrentReportName(report.reportName);
+
     setHasCalculated(true);
     setShowSaved(false);
-    alert(`Loaded: ${report.name}`);
+    setSuccess(`Loaded: ${report.reportName}`); // Use success state
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleDeleteReport = (id) => {
-    if (!confirm('Are you sure you want to delete this report?')) return;
-    const updatedReports = savedReports.filter(r => r.id !== id);
-    setSavedReports(updatedReports);
-    localStorage.setItem('financialReports', JSON.stringify(updatedReports));
+  const handleNewReport = () => {
+    // Clear all inputs and results
+    setInitialCash('');
+    setMonthlyRevenue('');
+    setMonthlyExpenses('');
+    setExpenseCategories({ salaries: '', marketing: '', infrastructure: '', operations: '' });
+    setMetrics(null);
+    setChartData([]);
+    setCashFlowData([]);
+    setRunwayData([]);
+    setExpenseBreakdown([]);
+    setHasCalculated(false);
+    
+    // Reset the current report ID
+    setCurrentReportId(null);
+    setCurrentReportName('');
+    
+    setSuccess('Cleared for new report.');
+  };
+
+  const handleDeleteReport = async (id) => {
+    // Removed the confirmation prompt
+    
+    try {
+      const token = localStorage.getItem('token');
+      await axios.delete(`/api/financial/${id}`, {
+        headers: { 'x-auth-token': token }
+      });
+      const updatedReports = savedReports.filter(r => r._id !== id);
+      setSavedReports(updatedReports);
+      
+      // If the deleted report was the one being edited, clear the form
+      if (id === currentReportId) {
+        handleNewReport();
+      }
+
+      setSuccess('Report deleted successfully.'); // Use success state
+    } catch (err) {
+      console.error('Error deleting report:', err);
+      setError('Failed to delete report.'); // Use error state
+    }
   };
 
   // Helper to get status color
@@ -264,7 +361,7 @@ const FinancialsPage = () => {
   };
 
   const getCashBalanceColor = (balance) => {
-    if (balance > initialCash * 0.5) return 'text-green-400';
+    if (balance > (parseFloat(initialCash) || 0) * 0.5) return 'text-green-400';
     if (balance > 0) return 'text-yellow-400';
     return 'text-red-400';
   };
@@ -280,14 +377,13 @@ const FinancialsPage = () => {
             <p className="text-gray-400">Comprehensive burn rate, runway, and cash flow analysis</p>
           </div>
           <div className="flex gap-2">
-            {hasCalculated && (
-              <button
-                onClick={handleSaveReport}
-                className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg text-sm font-medium transition-colors"
-              >
-                💾 Save Report
-              </button>
-            )}
+            {/* REMOVED the manual Save Report button */}
+            <button
+              onClick={handleNewReport}
+              className="px-4 py-2 bg-gray-600 hover:bg-gray-700 rounded-lg text-sm font-medium transition-colors"
+            >
+              🔄 New Report
+            </button>
             <button
               onClick={() => setShowSaved(!showSaved)}
               className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-medium transition-colors"
@@ -296,6 +392,19 @@ const FinancialsPage = () => {
             </button>
           </div>
         </div>
+
+        {/* --- ADD MESSAGE ALERTS --- */}
+        {error && (
+          <div className="mb-4 p-4 bg-red-900/20 border border-red-600 rounded-lg text-red-300 text-center">
+            {error}
+          </div>
+        )}
+        {success && (
+          <div className="mb-4 p-4 bg-green-900/20 border border-green-600 rounded-lg text-green-300 text-center">
+            {success}
+          </div>
+        )}
+        {/* --- END MESSAGE ALERTS --- */}
 
         {/* Saved Reports Modal */}
         {showSaved && (
@@ -306,9 +415,9 @@ const FinancialsPage = () => {
             ) : (
               <div className="space-y-2">
                 {savedReports.map(report => (
-                  <div key={report.id} className="flex items-center justify-between bg-gray-700/50 p-3 rounded-lg">
+                  <div key={report._id} className="flex items-center justify-between bg-gray-700/50 p-3 rounded-lg">
                     <div>
-                      <p className="font-medium text-white">{report.name}</p>
+                      <p className="font-medium text-white">{report.reportName}</p>
                       <p className="text-xs text-gray-400">
                         {new Date(report.date).toLocaleDateString()} at {new Date(report.date).toLocaleTimeString()}
                       </p>
@@ -321,7 +430,7 @@ const FinancialsPage = () => {
                         Load
                       </button>
                       <button
-                        onClick={() => handleDeleteReport(report.id)}
+                        onClick={() => handleDeleteReport(report._id)}
                         className="px-3 py-1 bg-red-600 hover:bg-red-700 rounded text-sm"
                       >
                         Delete
@@ -445,7 +554,6 @@ const FinancialsPage = () => {
                 onChange={(e) => setMonthlyRevenue(e.target.value)}
                 className="w-full p-3 bg-gray-700 rounded-lg text-white border border-gray-600 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="e.g., 5000, 5500, 6000, 7000"
-                required
               />
               <p className="text-xs text-gray-500 mt-1">Enter monthly revenue for each period</p>
             </div>
@@ -460,7 +568,6 @@ const FinancialsPage = () => {
                 onChange={(e) => setMonthlyExpenses(e.target.value)}
                 className="w-full p-3 bg-gray-700 rounded-lg text-white border border-gray-600 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="e.g., 10000, 10500, 11000, 11500"
-                required
               />
               <p className="text-xs text-gray-500 mt-1">Enter monthly expenses for each period</p>
             </div>
@@ -718,3 +825,4 @@ const FinancialsPage = () => {
 };
 
 export default FinancialsPage;
+
