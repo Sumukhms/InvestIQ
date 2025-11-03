@@ -22,6 +22,7 @@ import AuthSuccessPage from './components/AuthSuccessPage.jsx';
 import PrivacyPolicyPage from './components/PrivacyPolicyPage.jsx';
 import TermsOfServicePage from './components/TermsOfServicePage.jsx';
 import Chatbot from './components/Chatbot.jsx';
+import FundingEnvironmentPage from './components/FundingEnvironmentPage.jsx';
 
 import { applyTheme } from './utils/theme.js';
 
@@ -185,6 +186,15 @@ function App() {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/funding-environment"
+            element={
+              <ProtectedRoute profileData={profileData}>
+                <FundingEnvironmentPage />
+              </ProtectedRoute>
+            }
+          />
+
 
           {/* --- Fallback for Undefined Routes --- */}
           <Route
@@ -194,6 +204,7 @@ function App() {
             }
           />
         </Routes>
+        
       </main>
 
       {/* ✅ Chatbot only when logged in */}

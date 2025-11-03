@@ -136,6 +136,7 @@ const Navbar = ({ profileData = null, setProfileData }) => {
     { path: '/dashboard', label: 'Dashboard', icon: '📊' },
     { path: '/scorecard', label: 'Scorecard', icon: '🎯' },
     { path: '/growth-suggestions', label: 'AI Advisor', icon: '🤖' },
+    { path: '/funding-environment', label: 'Funding', icon: '💰' },
     { path: '/financials', label: 'Financials', icon: '💰' },
     { path: '/alerts-feed', label: 'News', icon: '🔔' },
     { path: '/competitor-setup', label: 'Competitors', icon: '⚔️' },
