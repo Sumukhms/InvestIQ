@@ -82,6 +82,7 @@ function App() {
 
   return (
     <Router>
+      <div className="min-h-screen bg-white text-black dark:bg-gray-900 dark:text-white">
       {/* ✅ Navbar appears only when logged in */}
       {profileData && (
         <Navbar profileData={profileData} setProfileData={setProfileData} />
@@ -198,6 +199,7 @@ function App() {
 
       {/* ✅ Chatbot only when logged in */}
       {profileData && <Chatbot />}
+      </div>
     </Router>
   );
 }

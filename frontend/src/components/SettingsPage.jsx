@@ -33,6 +33,10 @@ const SettingsPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const isInitialLoad = useRef(true); // Use ref to prevent first-load save trigger
 
+  // ... after [isLoading, setIsLoading]
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
+
   // --- Auto-save logic ---
   useEffect(() => {
     // Don't save on the initial load
@@ -204,6 +208,34 @@ const SettingsPage = () => {
     }
   };
 
+
+  //
+  const handleDeleteAccount = async () => {
+    // 1. We remove the window.confirm() because the modal handles it.
+    const token = localStorage.getItem('token');
+    if (!token) {
+      navigate('/login');
+      return;
+    }
+    
+    try {
+      const config = { headers: { 'x-auth-token': token } };
+      await axios.delete('http://localhost:5000/api/auth/profile', config);
+      
+      // 2. We remove the alert() because logging out is the success message.
+      localStorage.clear(); 
+      navigate('/login');    
+      window.location.reload(); 
+      
+    } catch (err) {
+      console.error('Failed to delete account:', err);
+      // 3. Set an error message and close the modal
+      setDeleteError('Failed to delete account. Please try again.');
+      setShowDeleteConfirm(false); // Close the modal on failure
+    }
+  };
+ 
+
   const tabs = [
     { id: 'general', label: '⚙️ General' },
     { id: 'account', label: '👤 Account' },
@@ -287,6 +319,7 @@ const SettingsPage = () => {
                         <div className="text-3xl mb-2">☀️</div>
                         <div className="font-medium">Light Mode</div>
                       </button>
+                      
                     </div>
                   </div>
                   <div className="bg-gray-700/30 p-6 rounded-lg border border-gray-600">
@@ -321,7 +354,17 @@ const SettingsPage = () => {
                   <div className="bg-red-900/20 p-6 rounded-lg border border-red-600">
                     <h3 className="text-lg font-semibold text-red-400 mb-4">⚠️ Danger Zone</h3>
                     <p className="text-gray-400 mb-4">Once you delete your account, there is no going back. Please be certain.</p>
-                    <button className={dangerButtonStyles} disabled>Delete Account (Not Implemented)</button>
+                    <button onClick={() => { setShowDeleteConfirm(true); 
+                            setDeleteError(''); // Clear any previous errors
+                          }} 
+                          className={dangerButtonStyles}
+                        >
+                          Delete Account
+                        </button>
+                        {deleteError && (
+                          <p className="text-red-400 text-sm mt-3">{deleteError}</p>
+                        )}
+                    
                   </div>
                 </div>
               )}
@@ -463,12 +506,38 @@ const SettingsPage = () => {
               )}
 
               {/* REMOVED THE SAVE BUTTON WRAPPER */}
-              
+
             </div>
           </div>
         </div>
       </div>
-    </div>
+      {/* --- Delete Account Confirmation Modal --- */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75 backdrop-blur-sm animate-fade-in">
+          <div className="bg-gray-800 rounded-xl border border-gray-700 p-8 max-w-lg w-full shadow-xl m-4">
+            <h2 className="text-2xl font-bold text-red-400 mb-4">⚠️ Are you absolutely sure?</h2>
+            <p className="text-gray-300 mb-6">
+              This action is permanent and cannot be undone. All your data, including scorecards and financial reports, will be permanently deleted.
+            </p>
+            <div className="flex justify-end gap-4">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className="px-5 py-2 bg-gray-600 hover:bg-gray-700 rounded-lg font-medium transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteAccount} // Calls the delete logic
+                className="px-5 py-2 bg-red-600 hover:bg-red-700 rounded-lg font-medium transition-colors"
+              >
+                Yes, Delete My Account
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+    </div> // This is the final closing div of the component
   );
 };
 

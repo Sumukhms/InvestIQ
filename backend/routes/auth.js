@@ -232,4 +232,30 @@ router.put('/profile', auth, async (req, res) => {
   }
 });
 
+// @route   DELETE api/auth/profile
+// @desc    Delete user account and all their data
+// @access  Private
+router.delete('/profile', auth, async (req, res) => {
+  try {
+    // Find user by ID from auth token
+    const user = await User.findById(req.user.id);
+
+    if (!user) {
+      return res.status(404).json({ msg: 'User not found' });
+    }
+
+    // Add logic here to delete associated data if necessary
+    // For example:
+    // await FinancialReport.deleteMany({ user: req.user.id });
+    // await Scorecard.deleteMany({ user: req.user.id });
+
+    // Delete the user
+    await User.findByIdAndDelete(req.user.id);
+
+    res.json({ msg: 'User account permanently deleted' });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
+});
 module.exports = router;
