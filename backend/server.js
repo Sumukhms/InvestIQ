@@ -38,6 +38,7 @@ app.use(cors());
 // ✅ FIX: Increase the payload size limit (e.g., to 50mb)
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
+app.use('/api/funding-environment', require('./routes/fundingEnvironment'));
 
 
 // --- Mongoose Connection ---
