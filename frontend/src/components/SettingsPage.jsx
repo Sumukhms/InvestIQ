@@ -5,6 +5,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { applyTheme } from '../utils/theme';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 const SettingsPage = () => {
   const navigate = useNavigate();
@@ -32,10 +34,17 @@ const SettingsPage = () => {
   const [showLoginHistory, setShowLoginHistory] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const isInitialLoad = useRef(true); // Use ref to prevent first-load save trigger
+  
 
   // ... after [isLoading, setIsLoading]
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteError, setDeleteError] = useState('');
+
+// --- ADD THESE FOR EXPORT MODAL ---
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [exportType, setExportType] = useState(null); // 'scorecard' or 'watchlist'
+  const [dataToExport, setDataToExport] = useState([]);
+  const [isFetchingExport, setIsFetchingExport] = useState(false);
 
   // --- Auto-save logic ---
   useEffect(() => {
@@ -101,6 +110,96 @@ const SettingsPage = () => {
     }
   };
 
+  /**
+   * Generates and downloads a JSON file.
+   */
+  const downloadJSON = (data, filename) => {
+    try {
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('downloadJSON failed:', err);
+      alert('Failed to download JSON.');
+    }
+  };
+
+  /**
+   * Generates and downloads a CSV file.
+   */
+  const generateAndDownloadCSV = (data, filename, type) => {
+    try {
+      if (!Array.isArray(data)) data = [data];
+      if (data.length === 0) return alert('No data to export');
+
+      const keys = Object.keys(data[0]);
+      const rows = [keys.join(',')];
+      data.forEach(item => {
+        const row = keys.map(k => {
+          const v = item[k];
+          if (v === null || v === undefined) return '';
+          if (typeof v === 'object') return '"' + JSON.stringify(v).replace(/"/g, '""') + '"';
+          return '"' + String(v).replace(/"/g, '""') + '"';
+        }).join(',');
+        rows.push(row);
+      });
+
+      const csv = rows.join('\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('generateAndDownloadCSV failed:', err);
+      alert('Failed to download CSV.');
+    }
+  };
+
+  /**
+   * Generates and downloads a PDF table.
+   */
+  const downloadPDF = (data, filename, type) => {
+    try {
+      const doc = new jsPDF();
+      if (!Array.isArray(data)) data = [data];
+      if (data.length === 0) return alert('No data to export');
+
+      const keys = Object.keys(data[0]);
+      const rows = data.map(item => keys.map(k => (item[k] === undefined || item[k] === null) ? '' : String(item[k])));
+
+      if (doc.autoTable) {
+        doc.autoTable({ head: [keys], body: rows });
+      } else {
+        // Fallback: simple text export
+        doc.text(keys.join(' | '), 10, 10);
+        let y = 20;
+        rows.forEach(r => {
+          doc.text(r.join(' | '), 10, y);
+          y += 8;
+          if (y > 280) { doc.addPage(); y = 10; }
+        });
+      }
+
+      doc.save(filename);
+    } catch (err) {
+      console.error('downloadPDF failed:', err);
+      alert('Failed to generate PDF.');
+    }
+  };
+
+
+
   const loadMockLoginHistory = () => {
     const mockHistory = [
       { id: 1, date: new Date().toISOString(), location: 'Bengaluru, India', ip: '103.xxx.xxx.xxx', device: 'Chrome on Windows' },
@@ -149,32 +248,66 @@ const SettingsPage = () => {
     }
   };
 
-  const handleExportScorecardHistory = async () => {
+const openExportModal = async (type) => {
+    setIsFetchingExport(true);
+    setExportType(type);
     const token = localStorage.getItem('token');
-    if (!token) return;
-    try {
-        const config = { headers: { 'x-auth-token': token } };
-        const res = await axios.get('http://localhost:5000/api/scorecard/history', config);
-        const history = res.data;
-        
-        if (!history || history.length === 0) {
-            alert('No scorecard history to export.');
-            return;
-        }
+    if (!token) {
+      setIsFetchingExport(false);
+      return;
+    }
+    const config = { headers: { 'x-auth-token': token } };
 
-        const blob = new Blob([JSON.stringify(history, null, 2)], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `scorecard-history-${Date.now()}.json`;
-        a.click();
-        URL.revokeObjectURL(url);
+    try {
+      let url = '';
+      let alertMsg = '';
+      if (type === 'scorecard') {
+        url = 'http://localhost:5000/api/scorecard'; 
+        alertMsg = 'No scorecard history to export.';
+      } else if (type === 'watchlist') {
+        url = 'http://localhost:5000/api/competitors/watchlist';
+        alertMsg = 'No competitor watchlist to export.';
+      }
+
+      const res = await axios.get(url, config);
+      const data = res.data;
+
+      if (!data || data.length === 0) {
+        alert(alertMsg);
+        setIsFetchingExport(false);
+        return;
+      }
+
+      setDataToExport(data);
+      setIsExportModalOpen(true);
+
     } catch (err) {
-        console.error("Failed to export history", err);
-        alert("Could not export scorecard history.");
+      console.error(`Failed to fetch ${type} data:`, err);
+      alert(`Could not fetch ${type} data for export.`);
+    } finally {
+      setIsFetchingExport(false);
     }
   };
 
+  /**
+   * Called by the modal buttons to trigger the correct download helper.
+   */
+  const handlePerformExport = (format) => {
+    const filename = exportType === 'scorecard' ? 'scorecard-history' : 'competitor-watchlist';
+    
+    if (format === 'json') {
+      downloadJSON(dataToExport, filename);
+    } else if (format === 'csv') {
+      generateAndDownloadCSV(dataToExport, filename, exportType);
+    } else if (format === 'pdf') {
+      downloadPDF(dataToExport, filename, exportType);
+    }
+    
+    // Close and reset modal state
+    setIsExportModalOpen(false);
+    setDataToExport([]);
+    setExportType(null);
+  };
 
   const handleClearWatchlist = () => {
     if (window.confirm('Are you sure you want to clear your competitor watchlist?')) {
@@ -183,10 +316,7 @@ const SettingsPage = () => {
     }
   };
 
-  const handleExportWatchlist = () => {
-    // Should fetch from a backend endpoint
-    alert('Export watchlist is not implemented yet.');
-  };
+  const handleExportWatchlist = () => openExportModal('watchlist');
 
   const handleClearAllData = () => {
     if (window.confirm('⚠️ WARNING: This will delete ALL your client-side data. This action cannot be undone. Are you absolutely sure?')) {
@@ -218,6 +348,27 @@ const SettingsPage = () => {
       return;
     }
     
+    /**
+   * Generates and downloads a JSON file.
+   */
+  const downloadJSON = (data, filename) => {
+    // ... (full function code from my previous answer) ...
+  };
+
+  /**
+   * Generates and downloads a CSV file...
+   */
+  const generateAndDownloadCSV = (data, filename, type) => {
+    // ... (full function code from my previous answer) ...
+  };
+
+  /**
+   * Generates and downloads a PDF table.
+   */
+  const downloadPDF = (data, filename, type) => {
+    // ... (full function code from my previous answer) ...
+  };
+
     try {
       const config = { headers: { 'x-auth-token': token } };
       await axios.delete('http://localhost:5000/api/auth/profile', config);
@@ -379,7 +530,11 @@ const SettingsPage = () => {
                     <h3 className="text-lg font-semibold text-white mb-4">📊 Scorecard History</h3>
                     <p className="text-gray-400 mb-4">Export or clear your saved startup scorecards.</p>
                     <div className="flex gap-3 flex-wrap">
-                      <button onClick={handleExportScorecardHistory} className={buttonStyles}>📄 Export History</button>
+                      <button 
+                        onClick={() => openExportModal('scorecard')} 
+                        className={buttonStyles}
+                        disabled={isFetchingExport && exportType === 'scorecard'}>{isFetchingExport && exportType === 'scorecard' ? 'Loading...' : '📄 Export History'}
+                        </button>
                       <button onClick={handleClearScorecardHistory} className={dangerButtonStyles}>🗑️ Clear History</button>
                     </div>
                   </div>
@@ -537,6 +692,12 @@ const SettingsPage = () => {
         </div>
       )}
       
+      {isExportModalOpen && (
+        <div className="fixed inset-0 z-50 ...">
+          {/* ... (all the new modal code from my previous answer) ... */}
+        </div>
+      )}
+
     </div> // This is the final closing div of the component
   );
 };
