@@ -1,10 +1,3 @@
-Here is a comprehensive `README.md` file and an "About the Project" description tailored to the specific features and tech stack found in your code (React/Vite, Node/Express, and the Python ML engine).
-
-### 1\. Suggested `README.md`
-
-You can replace the contents of your root `README.md` with this. It covers the entire full-stack architecture.
-
-````markdown
 # InvestIQ 🚀
 
 **InvestIQ** is a comprehensive, AI-powered analytics platform designed to help startup founders and investors make data-driven decisions. By combining financial tracking, competitor analysis, and machine learning models, InvestIQ provides actionable insights into a startup's probability of success and growth trajectory.
